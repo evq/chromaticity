@@ -1,13 +1,9 @@
 package main
 
 import (
-	"github.com/evq/chromaticity/apiserver"
-	"log"
-	"os"
+	"github.com/evq/chromaticity/api"
 )
 
 func main() {
-	log.SetOutput(os.Stdout)
-
-	apiserver.StartApiServer()
+	api.StartApiServer()
 }
