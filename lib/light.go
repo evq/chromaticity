@@ -5,6 +5,7 @@ import (
 	"github.com/evq/chromaticity/utils"
 	"github.com/lucasb-eyer/go-colorful"
 	"net/http"
+  "fmt"
 )
 
 type State struct {
@@ -26,8 +27,9 @@ type ColorState struct {
 }
 
 type LightResource struct {
-	Lights map[string]*Light
-	Groups map[string]Group
+  Lights map[string]*Light `json:"lights"`
+  Groups map[string]Group `json:"groups"`
+  *ConfigInfo `json:"config"`
 }
 
 type Light interface {
@@ -80,10 +82,12 @@ func (l LightResource) updateLightState(request *restful.Request, response *rest
 		response.WriteErrorString(http.StatusNotFound, "404: Light could not be found.")
 		return
 	}
-
 	cs := (*light).GetState().ColorState
 	cs.Xy = []float64{cs.Xy[0], cs.Xy[1]}
 	request.ReadEntity(&cs)
+
+  fmt.Println(cs)
+
 	UpdateColorState(light, cs)
 	SendState(light)
 	response.WriteEntity(light)

@@ -5,6 +5,7 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/evq/chromaticity/backends/kinetclient"
 	"github.com/evq/chromaticity/backends/opclient"
+	"github.com/evq/chromaticity/backends/limitlessclient"
 	chromaticity "github.com/evq/chromaticity/lib"
 	"github.com/evq/chromaticity/utils"
 	"io/ioutil"
@@ -14,6 +15,7 @@ import (
 var allBackends = []Backend{
 	kinetclient.Backend{},
 	opclient.Backend{},
+	limitlessclient.Backend{},
 }
 
 type Backend interface {

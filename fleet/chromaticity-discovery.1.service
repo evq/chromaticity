@@ -1,0 +1,10 @@
+[Unit]
+Description=Announce chromaticity_1
+BindsTo=chromaticity.1.service
+
+[Service]
+ExecStart=/bin/sh -c "while true; do etcdctl set /services/chromaticity/chromaticity_1 '{ \"host\": \"%H\", \"port\": 80, \"version\": \"52c7248a14\" }' --ttl 60;sleep 45;done"
+ExecStop=/usr/bin/etcdctl rm /services/chromaticity/chromaticity_1
+
+[X-Fleet]
+X-ConditionMachineOf=chromaticity.1.service

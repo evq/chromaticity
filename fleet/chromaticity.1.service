@@ -1,0 +1,16 @@
+[Unit]
+Description=Run chromaticity_1
+After=docker.service
+Requires=docker.service
+
+[Service]
+Restart=always
+RestartSec=10s
+ExecStartPre=/usr/bin/docker ps -a -q | xargs docker rm
+ExecStart=/usr/bin/docker run -rm -name chromaticity_1    -p 80:80 192.168.1.142:5000/chromaticity
+ExecStartPost=/usr/bin/docker ps -a -q | xargs docker rm
+ExecStop=/usr/bin/docker kill chromaticity_1
+ExecStopPost=/usr/bin/docker ps -a -q | xargs docker rm
+
+[Install]
+WantedBy=local.target
