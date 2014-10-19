@@ -12,6 +12,7 @@ import (
   "encoding/json"
   "fmt"
   //"io/ioutil"
+  "text/template"
 )
 
 type AuthHandler struct {
@@ -28,6 +29,16 @@ type UserName struct {
 }
 
 // Whitelist goes here
+
+func SsdpDescription(resp http.ResponseWriter, req *http.Request) {
+  t := template.New("description.xml")
+  var err error
+  t, err = t.ParseFiles(os.Getenv("GOPATH") + "/src/github.com/evq/chromaticity/servers/ssdp/description.xml")
+  if err != nil {
+    log.Println(err)
+  }
+  t.Execute(resp, req.Host)
+}
 
 func UserCreate(resp http.ResponseWriter, req *http.Request) {
     decoder := json.NewDecoder(req.Body)
@@ -80,7 +91,7 @@ func (a *AuthHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	a.chainedHandler.ServeHTTP(resp, req)
 }
 
-func StartApiServer() {
+func StartServer(port string) {
 	l := &chromaticity.LightResource{}
   l.ConfigInfo = chromaticity.NewConfigInfo()
 	backends.Load(l)
@@ -107,9 +118,11 @@ func StartApiServer() {
 	swagger.RegisterSwaggerService(config, swContainer)
 	http.Handle("/swagger/", swContainer)
 
+	http.HandleFunc("/description.xml", SsdpDescription)
+
 	http.HandleFunc("/api", UserCreate)
 	http.Handle("/api/", &AuthHandler{wsContainer})
 
-	log.Printf("[chromaticity] start listening on localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Printf("[chromaticity] start listening on localhost:" + port)
+	log.Fatal(http.ListenAndServe(":" + port, nil))
 }
