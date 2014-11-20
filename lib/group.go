@@ -52,10 +52,11 @@ func (l LightResource) updateGroupState(request *restful.Request, response *rest
 
 	for i := range group.LightIDs {
 		id := group.LightIDs[i]
-		cs = (*l.Lights[id]).GetState().ColorState
-		cs.Xy = []float64{cs.Xy[0], cs.Xy[1]}
-		request.ReadEntity(&cs)
-		UpdateColorState(l.Lights[id], cs)
+		//cs = (*l.Lights[id]).GetState().ColorState
+		//cs.Xy = []float64{cs.Xy[0], cs.Xy[1]}
+		//request.ReadEntity(&cs)
+		//UpdateColorState(l.Lights[id], cs)
+		UpdateColorState((*l.Lights[id]).GetState(), request)
 		SendState(l.Lights[id])
 	}
 	response.WriteEntity(group)

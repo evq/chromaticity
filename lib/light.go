@@ -5,7 +5,7 @@ import (
 	"github.com/evq/chromaticity/utils"
 	"github.com/lucasb-eyer/go-colorful"
 	"net/http"
-  "fmt"
+  //"fmt"
 )
 
 type State struct {
@@ -82,13 +82,14 @@ func (l LightResource) updateLightState(request *restful.Request, response *rest
 		response.WriteErrorString(http.StatusNotFound, "404: Light could not be found.")
 		return
 	}
-	cs := (*light).GetState().ColorState
-	cs.Xy = []float64{cs.Xy[0], cs.Xy[1]}
-	request.ReadEntity(&cs)
+	//cs := (*light).GetState().ColorState
+	//cs.Xy = []float64{cs.Xy[0], cs.Xy[1]}
+	//request.ReadEntity(&cs)
 
-  fmt.Println(cs)
+  //fmt.Println(cs)
 
-	UpdateColorState(light, cs)
+	//UpdateColorState(light, cs)
+	UpdateColorState((*light).GetState(), request)
 	SendState(light)
 	response.WriteEntity(light)
 }
@@ -153,12 +154,24 @@ func (state *State) GetColor() (c colorful.Color) {
 	return
 }
 
-func UpdateColorState(l *Light, s ColorState) {
-	state := (*l).GetState()
-	mode := _UpdateColorState(&state.ColorState, s)
+func UpdateColorState(dest *State, req *restful.Request) {
+  cs := (*dest).ColorState
+	cs.Xy = []float64{cs.Xy[0], cs.Xy[1]}
+	req.ReadEntity(&cs)
+
+	mode := _UpdateColorState(&(*dest).ColorState, cs)
 	if len(mode) != 0 {
-		state.Colormode = mode
-	}
+		dest.Colormode = mode
+	} else {
+    cs = ColorState{}
+    cs.Xy = []float64{0.0, 0.0}
+    src := cs
+    req.ReadEntity(&src)
+    mode = _UpdateColorState(&cs, src)
+    if len(mode) != 0 {
+      dest.Colormode = mode
+    }
+  }
 }
 
 // This function is designed to take an updated copy of the colorstate
