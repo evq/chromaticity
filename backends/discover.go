@@ -3,19 +3,20 @@ package backends
 import (
 	"encoding/json"
 	"github.com/emicklei/go-restful"
-	"github.com/evq/chromaticity/backends/kinetclient"
-	"github.com/evq/chromaticity/backends/opclient"
-	"github.com/evq/chromaticity/backends/limitlessclient"
+	//"github.com/evq/chromaticity/backends/kinetclient"
+  "github.com/evq/chromaticity/backends/opclient"
+	//"github.com/evq/chromaticity/backends/limitlessclient"
 	chromaticity "github.com/evq/chromaticity/lib"
 	"github.com/evq/chromaticity/utils"
 	"io/ioutil"
 	"os/user"
+  "time"
 )
 
 var allBackends = []Backend{
-	kinetclient.Backend{},
-	opclient.Backend{},
-	limitlessclient.Backend{},
+	//kinetclient.Backend{},
+  opclient.Backend{make([]opclient.OPCServer,10)},
+	//limitlessclient.Backend{},
 }
 
 type Backend interface {
@@ -23,6 +24,7 @@ type Backend interface {
 	ImportLights(l *chromaticity.LightResource, from []byte)
 	DiscoverLights(l *chromaticity.LightResource)
 	GetType() string
+  Sync()
 }
 
 type DiscoverResource struct {
@@ -49,6 +51,15 @@ func (d DiscoverResource) _RegisterDiscoveryApi(ws *restful.WebService) {
 
 func (d DiscoverResource) searchLights(request *restful.Request, response *restful.Response) {
 	Discover(d.LightResource)
+}
+
+func Sync() {
+  for {
+    for i := range allBackends {
+      allBackends[i].Sync()
+    }
+    time.Sleep(10 * time.Millisecond)
+  }
 }
 
 func Load(l *chromaticity.LightResource) {

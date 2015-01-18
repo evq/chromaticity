@@ -104,6 +104,8 @@ func StartServer(port string) {
 	l.RegisterGroupsApi(wsContainer)
 	backends.RegisterDiscoveryApi(wsContainer, l)
 
+  go backends.Sync()
+
 	// Uncomment to add some swagger
 	config := swagger.Config{
 		WebServices:     wsContainer.RegisteredWebServices(),

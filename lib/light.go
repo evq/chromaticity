@@ -6,7 +6,6 @@ import (
 	"github.com/evq/chromaticity/utils"
 	"github.com/lucasb-eyer/go-colorful"
 	"net/http"
-  "math"
   //"fmt"
 )
 
@@ -22,6 +21,7 @@ type ColorState struct {
 	Bri            uint8     `json:"bri"`
 	Ct             uint16    `json:"ct"`
 	Effect         string    `json:"effect"`
+  EffectSpread   float64   `json:"effectspread"`
 	Hue            uint16    `json:"hue"`
 	On             bool      `json:"on"`
 	TransitionTime uint16    `json:"transitiontime"`
@@ -36,8 +36,10 @@ type LightResource struct {
 }
 
 type Light interface {
-	SendColor(c colorful.Color)
+	SetColor(c colorful.Color)
+	SetColors(c []colorful.Color)
 	GetState() (s *State)
+  GetNumPixels() (p uint16)
 }
 
 type LightInfo struct {
@@ -232,6 +234,12 @@ func _UpdateColorState(state *ColorState, s ColorState) string {
     state.TransitionTime = s.TransitionTime
   }
 
+  if s.EffectSpread != state.EffectSpread {
+    if s.EffectSpread >= 0.0 {
+      state.EffectSpread = s.EffectSpread
+    }
+  }
+
 	return mode
 }
 
@@ -252,11 +260,8 @@ func SendState(l *Light) {
     case "hclloop":
       s.EffectRoutine = make(chan bool)
       go HclLoop(s.EffectRoutine, l)
-    case "sineloop":
-      s.EffectRoutine = make(chan bool)
-      go SineLoop(s.EffectRoutine, l)
     default:
-      (*l).SendColor(s.GetColor())
+      (*l).SetColor(s.GetColor())
   }
 }
 
@@ -273,7 +278,16 @@ func HsvLoop(done chan bool, light *Light) {
         if h >= 360.0 {
           h = 0.0
         }
-        (*light).SendColor(colorful.Hsv(h,c,l))
+        j := h
+        colors := make([]colorful.Color, (*light).GetNumPixels())
+        for i := range colors {
+          colors[i] = colorful.Hsv(j,c,l)
+          j = j + ((*light).GetState().EffectSpread * 360.0 / float64((*light).GetNumPixels()))
+          if j >= 360.0 {
+            j = j - 360.0
+          }
+        }
+        (*light).SetColors(colors)
         time.Sleep((10 + time.Duration(s.TransitionTime)) * time.Millisecond)
     }
   }
@@ -292,33 +306,17 @@ func HclLoop(done chan bool, light *Light) {
         if h >= 360.0 {
           h = 0.0
         }
-        (*light).SendColor(colorful.Hcl(h,c,l))
-        time.Sleep((10 + time.Duration(s.TransitionTime)) * time.Millisecond)
-    }
-  }
-}
-
-func SineLoop(done chan bool, light *Light) {
-  s := (*light).GetState()
-  h := 0.0
-  r := 0.0
-  g := 0.0
-  b := 0.0
-  for {
-    select {
-      case <- done:
-          return
-      default:
-        h = h + 0.005
-        r = (math.Sin(math.Pi * (-h + 0.5)) + 1.0) / 2.0
-        g = (math.Sin(math.Pi * (-h + 0.3333 + 0.5)) + 1.0) / 2.0
-        b = (math.Sin(math.Pi * (-h + 0.6666 + 0.5)) + 1.0) / 2.0
-        if h >= 2.0 {
-          h = 0.0
+        j := h
+        colors := make([]colorful.Color, (*light).GetNumPixels())
+        for i := range colors {
+          colors[i] = colorful.Hcl(j,c,l)
+          j = j + ((*light).GetState().EffectSpread * 360.0 / float64((*light).GetNumPixels()))
+          if j >= 360.0 {
+            j = j - 360.0
+          }
         }
-        (*light).SendColor(colorful.Color{r,g,b})
+        (*light).SetColors(colors)
         time.Sleep((10 + time.Duration(s.TransitionTime)) * time.Millisecond)
     }
   }
 }
-
