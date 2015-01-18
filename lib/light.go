@@ -1,10 +1,12 @@
 package chromaticity
 
 import (
+  "time"
 	"github.com/emicklei/go-restful"
 	"github.com/evq/chromaticity/utils"
 	"github.com/lucasb-eyer/go-colorful"
 	"net/http"
+  "math"
   //"fmt"
 )
 
@@ -12,6 +14,7 @@ type State struct {
 	Reachable bool   `json:"reachable"`
 	Colormode string `json:"colormode"`
 	ColorState
+  EffectRoutine chan bool `json:"-"`
 }
 
 type ColorState struct {
@@ -157,6 +160,7 @@ func (state *State) GetColor() (c colorful.Color) {
 func UpdateColorState(dest *State, req *restful.Request) {
   cs := (*dest).ColorState
 	cs.Xy = []float64{cs.Xy[0], cs.Xy[1]}
+  cs.Effect = "none"
 	req.ReadEntity(&cs)
 
 	mode := _UpdateColorState(&(*dest).ColorState, cs)
@@ -165,6 +169,7 @@ func UpdateColorState(dest *State, req *restful.Request) {
 	} else {
     cs = ColorState{}
     cs.Xy = []float64{0.0, 0.0}
+    cs.Effect = "none"
     src := cs
     req.ReadEntity(&src)
     mode = _UpdateColorState(&cs, src)
@@ -220,11 +225,100 @@ func _UpdateColorState(state *ColorState, s ColorState) string {
 		state.On = s.On
 	}
 	// alert
-	// effect
-	// transitiontime
+
+  state.Effect = s.Effect
+
+  if s.TransitionTime != state.TransitionTime {
+    state.TransitionTime = s.TransitionTime
+  }
+
 	return mode
 }
 
 func SendState(l *Light) {
-	(*l).SendColor((*l).GetState().GetColor())
+  s := (*l).GetState()
+  if s.EffectRoutine != nil {
+    s.EffectRoutine <- true
+    s.EffectRoutine = nil
+  }
+
+  switch s.Effect {
+    case "colorloop":
+      s.EffectRoutine = make(chan bool)
+      go HsvLoop(s.EffectRoutine, l)
+    case "hsvloop":
+      s.EffectRoutine = make(chan bool)
+      go HsvLoop(s.EffectRoutine, l)
+    case "hclloop":
+      s.EffectRoutine = make(chan bool)
+      go HclLoop(s.EffectRoutine, l)
+    case "sineloop":
+      s.EffectRoutine = make(chan bool)
+      go SineLoop(s.EffectRoutine, l)
+    default:
+      (*l).SendColor(s.GetColor())
+  }
 }
+
+// A hsv based rainbow fade
+func HsvLoop(done chan bool, light *Light) {
+  s := (*light).GetState()
+  h, c, l := s.GetColor().Hsv()
+  for {
+    select {
+      case <- done:
+          return
+      default:
+        h = h + 1.00
+        if h >= 360.0 {
+          h = 0.0
+        }
+        (*light).SendColor(colorful.Hsv(h,c,l))
+        time.Sleep((10 + time.Duration(s.TransitionTime)) * time.Millisecond)
+    }
+  }
+}
+
+// A hcl based rainbow fade
+func HclLoop(done chan bool, light *Light) {
+  s := (*light).GetState()
+  h, c, l := s.GetColor().Hcl()
+  for {
+    select {
+      case <- done:
+          return
+      default:
+        h = h + 1.00
+        if h >= 360.0 {
+          h = 0.0
+        }
+        (*light).SendColor(colorful.Hcl(h,c,l))
+        time.Sleep((10 + time.Duration(s.TransitionTime)) * time.Millisecond)
+    }
+  }
+}
+
+func SineLoop(done chan bool, light *Light) {
+  s := (*light).GetState()
+  h := 0.0
+  r := 0.0
+  g := 0.0
+  b := 0.0
+  for {
+    select {
+      case <- done:
+          return
+      default:
+        h = h + 0.005
+        r = (math.Sin(math.Pi * (-h + 0.5)) + 1.0) / 2.0
+        g = (math.Sin(math.Pi * (-h + 0.3333 + 0.5)) + 1.0) / 2.0
+        b = (math.Sin(math.Pi * (-h + 0.6666 + 0.5)) + 1.0) / 2.0
+        if h >= 2.0 {
+          h = 0.0
+        }
+        (*light).SendColor(colorful.Color{r,g,b})
+        time.Sleep((10 + time.Duration(s.TransitionTime)) * time.Millisecond)
+    }
+  }
+}
+

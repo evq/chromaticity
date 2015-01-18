@@ -3,7 +3,7 @@ package limitlessclient
 import (
 	"encoding/json"
 	chromaticity "github.com/evq/chromaticity/lib"
-	"github.com/evq/chromaticity/go-limitless"
+	"github.com/evq/go-limitless"
 	"github.com/lucasb-eyer/go-colorful"
 	"strconv"
 )
