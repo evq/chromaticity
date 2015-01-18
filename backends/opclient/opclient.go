@@ -8,6 +8,7 @@ import (
 	"strconv"
   "reflect"
   "fmt"
+  "time"
 )
 
 type Backend struct {
@@ -24,6 +25,7 @@ type OPCServer struct {
 	Name     string      `json:"name"`
 	Host     string      `json:"host"`
 	Port     string      `json:"port"`
+	RefreshRate     uint8      `json:"refreshrate"`
 	Channels []Channel   `json:"channels"`
 	Client   *opc.Client `json:"-"`
 }
@@ -48,9 +50,15 @@ func (k OPCLight) SetColors(c []colorful.Color) {
   }
 }
 
-func (b Backend) Sync() {
+func (b *Backend) Sync() {
   for s := range b.Servers {
     server := &b.Servers[s]
+    go server.Sync()
+  }
+}
+
+func (server *OPCServer) Sync() {
+  for {
     for c := range server.Channels {
       channel := server.Channels[c]
       if !reflect.DeepEqual(channel.NextColors, channel.CurrentColors) {
@@ -78,9 +86,9 @@ func (b Backend) Sync() {
           channel.CurrentColors[i] = channel.NextColors[i]
         }
         server.Client.Send(msg)
-        //server.Client.Close()
       }
     }
+    time.Sleep(time.Duration(1000.0 / float64(server.RefreshRate)) * time.Millisecond)
   }
 }
 
@@ -92,16 +100,14 @@ func (k OPCLight) GetState() *chromaticity.State {
 	return k.LightState
 }
 
-func (b Backend) GetType() string {
+func (b *Backend) GetType() string {
 	return "opc"
 }
 
-func (b Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
-  newB := Backend{}
-	json.Unmarshal(from, &newB)
+func (b *Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
+	json.Unmarshal(from, b)
 
-	for i := range newB.Servers {
-    b.Servers[i] = newB.Servers[i]
+	for i := range b.Servers {
 		server := b.Servers[i]
 		for j := range server.Channels {
 			light := OPCLight{}
@@ -124,6 +130,6 @@ func (b Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
 	}
 }
 
-func (b Backend) DiscoverLights(l *chromaticity.LightResource) {
+func (b *Backend) DiscoverLights(l *chromaticity.LightResource) {
 	return
 }
