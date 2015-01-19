@@ -11,9 +11,7 @@ import (
 
 type State struct {
 	Reachable bool   `json:"reachable"`
-	Colormode string `json:"colormode"`
-	ColorState
-  EffectRoutine chan bool `json:"-"`
+	*ColorState
 }
 
 type ColorState struct {
@@ -27,6 +25,13 @@ type ColorState struct {
 	TransitionTime uint16    `json:"transitiontime"`
 	Sat            uint8     `json:"sat"`
 	Xy             []float64 `json:"xy"`
+	Colormode      string    `json:"colormode"`
+  *EffectRoutine
+}
+
+type EffectRoutine struct {
+  Signal chan bool `json:"-"`
+  Done bool `json:"-"`
 }
 
 type LightResource struct {
@@ -54,6 +59,7 @@ type LightInfo struct {
 
 func NewState() *State {
 	s := State{}
+  s.ColorState = &ColorState{}
 	s.Alert = "none"
 	s.Alert = "none"
 	s.Effect = "none"
@@ -94,7 +100,7 @@ func (l LightResource) updateLightState(request *restful.Request, response *rest
   //fmt.Println(cs)
 
 	//UpdateColorState(light, cs)
-	UpdateColorState((*light).GetState(), request)
+	UpdateColorState((*light).GetState().ColorState, request)
 	SendState(light)
 	response.WriteEntity(light)
 }
@@ -159,13 +165,13 @@ func (state *State) GetColor() (c colorful.Color) {
 	return
 }
 
-func UpdateColorState(dest *State, req *restful.Request) {
-  cs := (*dest).ColorState
+func UpdateColorState(dest *ColorState, req *restful.Request) {
+  cs := (*dest)
 	cs.Xy = []float64{cs.Xy[0], cs.Xy[1]}
   cs.Effect = "none"
 	req.ReadEntity(&cs)
 
-	mode := _UpdateColorState(&(*dest).ColorState, cs)
+	mode := _UpdateColorState(dest, cs)
 	if len(mode) != 0 {
 		dest.Colormode = mode
 	} else {
@@ -246,20 +252,24 @@ func _UpdateColorState(state *ColorState, s ColorState) string {
 func SendState(l *Light) {
   s := (*l).GetState()
   if s.EffectRoutine != nil {
-    s.EffectRoutine <- true
+    if !s.EffectRoutine.Done {
+      s.EffectRoutine.Done = true
+      s.EffectRoutine.Signal <- true
+      close(s.EffectRoutine.Signal)
+    }
     s.EffectRoutine = nil
   }
 
   switch s.Effect {
     case "colorloop":
-      s.EffectRoutine = make(chan bool)
-      go HsvLoop(s.EffectRoutine, l)
+      s.EffectRoutine = &EffectRoutine{make(chan bool), false}
+      go HsvLoop(s.EffectRoutine.Signal, l)
     case "hsvloop":
-      s.EffectRoutine = make(chan bool)
-      go HsvLoop(s.EffectRoutine, l)
+      s.EffectRoutine = &EffectRoutine{make(chan bool), false}
+      go HsvLoop(s.EffectRoutine.Signal, l)
     case "hclloop":
-      s.EffectRoutine = make(chan bool)
-      go HclLoop(s.EffectRoutine, l)
+      s.EffectRoutine = &EffectRoutine{make(chan bool), false}
+      go HclLoop(s.EffectRoutine.Signal, l)
     default:
       (*l).SetColor(s.GetColor())
   }

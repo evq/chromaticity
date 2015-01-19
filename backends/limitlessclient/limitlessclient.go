@@ -38,7 +38,6 @@ func (k LimitlessLight) SetColors(c []colorful.Color) {
 func (b *Backend) Sync() {
   for c:= range b.Controllers {
     controller := &b.Controllers[c]
-    fmt.Println(controller)
     go controller.Sync()
   }
 }
@@ -47,11 +46,7 @@ func (c *Controller) Sync() {
   for {
     for g := range c.Groups {
       group := c.Groups[g]
-      //fmt.Println(c.NextColors)
-      //fmt.Println(c.CurrentColors[group.Id])
       if *c.NextColors[group.Id] != *c.CurrentColors[group.Id] {
-        fmt.Println("sending")
-        fmt.Println(*c.NextColors[group.Id])
         err := group.SendColor(*c.NextColors[group.Id])
         if err != nil {
           fmt.Println(err.Error())
@@ -78,18 +73,15 @@ func (b *Backend) GetType() string {
 
 func (b *Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
 	json.Unmarshal(from, b)
-  fmt.Println(b)
 
 	for i := range b.Controllers {
 		controller := &b.Controllers[i]
     ids := []string{}
     controller.NextColors = make(map[int]*colorful.Color)
     controller.CurrentColors = make(map[int]*colorful.Color)
-    fmt.Println(controller)
 		for j := range controller.Groups {
       controller.NextColors[controller.Groups[j].Id] = &colorful.Color{}
       controller.CurrentColors[controller.Groups[j].Id] = &colorful.Color{}
-      fmt.Println(controller)
 			light := LimitlessLight{}
       light.NextColor = controller.NextColors[controller.Groups[j].Id]
 			light.Group = &controller.Groups[j]
@@ -108,11 +100,12 @@ func (b *Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
 			l.Lights[id] = &castlight
 		}
 
-    l.Groups[strconv.Itoa(len(l.Groups)+1)] = chromaticity.Group{
+    l.Groups[strconv.Itoa(len(l.Groups)+1)] = *chromaticity.NewGroup(
+      l,
       chromaticity.GroupInfo{ids, controller.Name},
-      &chromaticity.NewState().ColorState,
+      chromaticity.NewState().ColorState,
       true,
-    }
+    )
 	}
 }
 
