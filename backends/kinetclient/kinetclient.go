@@ -2,18 +2,18 @@ package kinetclient
 
 import (
 	"encoding/json"
-	chromaticity "github.com/evq/chromaticity/lib" 
+	chromaticity "github.com/evq/chromaticity/lib"
 	"github.com/evq/go-kinet"
 	"github.com/lucasb-eyer/go-colorful"
 	"image/color"
 	"strconv"
-  "reflect"
+  "time"
 )
 
 type Backend struct {
 	PowerSupplies []kinet.PowerSupply `json:"powerSupplies"`
-  NextColor map[string][]color.Color `json:"-"`
-  CurrentColor map[string][]color.Color `json:"-"`
+  NextColor map[string][]*colorful.Color `json:"-"`
+  CurrentColor map[string][]*colorful.Color `json:"-"`
 }
 
 type KinetLight struct {
@@ -21,32 +21,51 @@ type KinetLight struct {
 	LightState *chromaticity.State `json:"state"`
 	Fixture    *kinet.Fixture      `json:"-"`
   Backend `json:"-"`
-  NextColor *color.Color `json:"-"`
+  NextColor *colorful.Color `json:"-"`
 }
 
 func (k KinetLight) SetColor(c colorful.Color) {
-	// Gamma correction
-	r, g, b := c.Clamped().LinearRgb()
-  *k.NextColor = color.RGBA{
-    uint8(r * 255),
-    uint8(g * 255),
-    uint8(b * 255),
-    255,
-  }
+  *k.NextColor = c
+}
+
+func (k KinetLight) SetColors(c []colorful.Color) {
+  k.SetColor(c[0])
 }
 
 func (b Backend) Sync() {
 	pses := b.PowerSupplies
 	for i := range pses {
     ps := pses[i]
-    if !reflect.DeepEqual(b.NextColor[ps.Mac], b.CurrentColor[ps.Mac]) {
-      ps.SendColors(b.NextColor[ps.Mac])
-      currentColors := b.CurrentColor[ps.Mac]
-      for j := range currentColors {
-        currentColors[j] = b.NextColor[ps.Mac][j]
+    go b.PSSync(&ps)
+  }
+}
+
+func (b Backend) PSSync(ps *kinet.PowerSupply) {
+  for {
+    eq := true
+
+    arr := make([]color.Color, len(b.NextColor[ps.Mac]))
+    for e := range arr {
+      r, g, bb := (*b.NextColor[ps.Mac][e]).Clamped().RGB255()
+      arr[e] = color.RGBA{r, g, bb, 0xFF}
+      if *b.NextColor[ps.Mac][e] != *b.CurrentColor[ps.Mac][e] {
+        eq = false
       }
     }
+
+    if !eq {
+      ps.SendColors(arr)
+      currentColors := b.CurrentColor[ps.Mac]
+      for j := range currentColors {
+        *currentColors[j] = *b.NextColor[ps.Mac][j]
+      }
+    }
+    time.Sleep(15 * time.Millisecond)
   }
+}
+
+func (k KinetLight) GetNumPixels() uint16 {
+  return 1
 }
 
 func (k KinetLight) GetState() *chromaticity.State {
@@ -63,8 +82,8 @@ func (b Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
 
 	for i := range pses {
 		ps := pses[i]
-    b.NextColor[ps.Mac] = make([]color.Color, len(ps.Fixtures))
-    b.CurrentColor[ps.Mac] = make([]color.Color, len(ps.Fixtures))
+    b.NextColor[ps.Mac] = make([]*colorful.Color, len(ps.Fixtures))
+    b.CurrentColor[ps.Mac] = make([]*colorful.Color, len(ps.Fixtures))
     AddPSLights(l, &ps, b.NextColor[ps.Mac])
 	}
 }
@@ -92,14 +111,27 @@ func (b Backend) DiscoverLights(l *chromaticity.LightResource) {
 		}
 
 		if !exists {
-      b.NextColor[ps.Mac] = make([]color.Color, len(ps.Fixtures))
-      b.CurrentColor[ps.Mac] = make([]color.Color, len(ps.Fixtures))
+      if b.NextColor == nil {
+        b.NextColor = make(map[string][]*colorful.Color)
+      }
+      if b.CurrentColor == nil {
+        b.CurrentColor = make(map[string][]*colorful.Color)
+      }
+      b.NextColor[ps.Mac] = make([]*colorful.Color, len(ps.Fixtures))
+      for i := range b.NextColor[ps.Mac] {
+        b.NextColor[ps.Mac][i] = &colorful.Color{}
+      }
+      b.CurrentColor[ps.Mac] = make([]*colorful.Color, len(ps.Fixtures))
+      for i := range b.CurrentColor[ps.Mac] {
+        b.CurrentColor[ps.Mac][i] = &colorful.Color{}
+      }
 			AddPSLights(l, ps, b.NextColor[ps.Mac])
+      go b.PSSync(ps)
 		}
 	}
 }
 
-func AddPSLights(l *chromaticity.LightResource, ps *kinet.PowerSupply, nextColor []color.Color) {
+func AddPSLights(l *chromaticity.LightResource, ps *kinet.PowerSupply, nextColor []*colorful.Color) {
 	for j := range ps.Fixtures {
 		ps.Fixtures[j].PS = ps
 	}
@@ -114,19 +146,20 @@ func AddPSLights(l *chromaticity.LightResource, ps *kinet.PowerSupply, nextColor
 		ids = append(ids, id)
 	}
 
-	l.Groups[strconv.Itoa(len(l.Groups)+1)] = chromaticity.Group{
+	l.Groups[strconv.Itoa(len(l.Groups)+1)] = *chromaticity.NewGroup(
+    l,
 		chromaticity.GroupInfo{ids, ps.Name},
-		&chromaticity.NewState().ColorState,
+		chromaticity.NewState().ColorState,
 		true,
-	}
+	)
 }
 
-func LightsFrom(ps *kinet.PowerSupply, nextColor []color.Color) []chromaticity.Light {
+func LightsFrom(ps *kinet.PowerSupply, nextColor []*colorful.Color) []chromaticity.Light {
 	lights := []chromaticity.Light{}
 	for i := range ps.Fixtures {
 		k := KinetLight{}
 		k.Fixture = ps.Fixtures[i]
-    k.NextColor = &nextColor[k.Fixture.Channel]
+    k.NextColor = nextColor[i]
 
 		if k.Fixture.Color == nil {
 			k.Fixture.Color = colorful.LinearRgb(0.0, 0.0, 0.0)
@@ -142,7 +175,6 @@ func LightsFrom(ps *kinet.PowerSupply, nextColor []color.Color) []chromaticity.L
 		k.ModelId = ps.Type
 		k.SwVersion = ps.FWVersion
 
-		//lights[strconv.Itoa(len(lights) + 1)] = &k
 		lights = append(lights, &k)
 	}
 	return lights
