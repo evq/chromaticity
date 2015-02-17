@@ -85,7 +85,12 @@ func (server *OPCServer) Sync() {
           )
           channel.CurrentColors[i] = channel.NextColors[i]
         }
-        server.Client.Send(msg)
+        err := server.Client.Send(msg)
+        if err != nil {
+          fmt.Print("ERROR!:")
+          fmt.Print(err.Error())
+          server.Client = nil
+        }
       }
     }
     time.Sleep(time.Duration(1000.0 / float64(server.RefreshRate)) * time.Millisecond)

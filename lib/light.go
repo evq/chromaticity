@@ -168,7 +168,6 @@ func (state *State) GetColor() (c colorful.Color) {
 func UpdateColorState(dest *ColorState, req *restful.Request) {
   cs := (*dest)
 	cs.Xy = []float64{cs.Xy[0], cs.Xy[1]}
-  cs.Effect = "none"
 	req.ReadEntity(&cs)
 
 	mode := _UpdateColorState(dest, cs)
@@ -234,7 +233,9 @@ func _UpdateColorState(state *ColorState, s ColorState) string {
 	}
 	// alert
 
-  state.Effect = s.Effect
+  if s.Effect != state.Effect {
+    state.Effect = s.Effect
+  }
 
   if s.TransitionTime != state.TransitionTime {
     state.TransitionTime = s.TransitionTime
