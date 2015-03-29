@@ -3,6 +3,7 @@ package opclient
 import (
 	"encoding/json"
 	chromaticity "github.com/evq/chromaticity/lib"
+	"github.com/evq/chromaticity/utils"
 	"github.com/kellydunn/go-opc"
 	"github.com/lucasb-eyer/go-colorful"
 	"strconv"
@@ -26,6 +27,8 @@ type OPCServer struct {
 	Host     string      `json:"host"`
 	Port     string      `json:"port"`
 	RefreshRate     uint8      `json:"refreshrate"`
+	Type     string      `json:"type"`
+	White    uint16      `json:"white"`
 	Channels []Channel   `json:"channels"`
 	Client   *opc.Client `json:"-"`
 }
@@ -73,16 +76,38 @@ func (server *OPCServer) Sync() {
         }
 
         msg := opc.NewMessage(channel.ID)
-        msg.SetLength(channel.NumPixels * 3)
+				if server.Type == "RGB" {
+					msg.SetLength(channel.NumPixels * 3)
+				} else if server.Type == "RGBW" {
+					msg.SetLength(2 * channel.NumPixels * 3)
+				}
 
         for i := 0; i < int(channel.NumPixels); i++ {
-          r, g, b := channel.NextColors[i].Clamped().LinearRgb()
-          msg.SetPixelColor(
-            i,
-            uint8(r*255),
-            uint8(g*255),
-            uint8(b*255),
-          )
+          p := channel.NextColors[i].Clamped()
+					if server.Type == "RGB" {
+						r, g, b := p.Clamped().LinearRgb()
+						msg.SetPixelColor(
+							i,
+							uint8(r*255),
+							uint8(g*255),
+							uint8(b*255),
+						)
+				  } else if server.Type == "RGBW" {
+						rgb, w := utils.RgbToRgbw(p, server.White)
+						r, g, b := rgb.Clamped().LinearRgb()
+						msg.SetPixelColor(
+							2*i,
+							uint8(r*255),
+							uint8(g*255),
+							uint8(b*255),
+						)
+						msg.SetPixelColor(
+							2*i+1,
+							uint8(utils.Linearize(w)*255),
+							0,
+							0,
+						)
+					}
           channel.CurrentColors[i] = channel.NextColors[i]
         }
         err := server.Client.Send(msg)
@@ -113,6 +138,9 @@ func (b *Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
 	json.Unmarshal(from, b)
 
 	for i := range b.Servers {
+		if b.Servers[i].Type == "" {
+			b.Servers[i].Type = "RGB"
+		}
 		server := b.Servers[i]
 		for j := range server.Channels {
 			light := OPCLight{}
@@ -122,7 +150,7 @@ func (b *Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
       light.Chan.NextColors = make([]colorful.Color, light.Chan.NumPixels)
 			light.Type = "OPC Light"
 			light.Name = server.Name + " Chan:" + strconv.Itoa(int(light.Chan.ID))
-			light.ModelId = ":D"
+			light.ModelId = server.Type
 			light.SwVersion = "0"
 
 			light.LightState = chromaticity.NewState()

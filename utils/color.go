@@ -44,3 +44,55 @@ func FromMirads(temp uint16, bri uint8) colorful.Color {
 	}
 	return colorful.Xyy(x, y, b)
 }
+
+func WhiteCmpt(c colorful.Color, w colorful.Color) float64 {
+	_,sat,_ := c.Hsv()
+	diff := w.DistanceCIE94(c)
+	if diff > 1.0 {
+		diff = 1.0
+	}
+
+	mag := c.R + c.G + c.B / 3.0
+	if mag > 1.0 {
+		mag = 1.0
+	}
+
+	if mag <= 0.0 {
+		return 0.0
+	} else {
+		mag = 1.0 / mag
+	}
+
+	return (1.0 - diff) * (1.0 - math.Pow(sat,3)) * mag
+}
+
+func RgbToRgbw(c colorful.Color, mir uint16) (rgb colorful.Color, w float64) {
+	white := FromMirads(mir, 255)
+	w = WhiteCmpt(c, white)
+	white.R = w * white.R
+	white.G = w * white.G
+	white.B = w * white.B
+
+	rgb.R = c.R - white.R
+	rgb.G = c.G - white.G
+	rgb.B = c.B - white.B
+
+	rgb.R = rgb.R + (1.0 - math.Max(rgb.R, math.Max(rgb.G, rgb.B))) * c.R
+	rgb.G = rgb.G + (1.0 - math.Max(rgb.R, math.Max(rgb.G, rgb.B))) * c.G
+	rgb.B = rgb.B + (1.0 - math.Max(rgb.R, math.Max(rgb.G, rgb.B))) * c.B
+
+	return
+}
+
+/// Linear ///
+//////////////
+// https://github.com/lucasb-eyer/go-colorful/blob/master/colors.go
+// http://www.sjbrown.co.uk/2004/05/14/gamma-correct-rendering/
+// http://www.brucelindbloom.com/Eqn_RGB_to_XYZ.html
+
+func Linearize(v float64) float64 {
+	if v <= 0.04045 {
+			return v / 12.92
+	}
+	return 1.055 * math.Pow(v, 1.0/2.4) - 0.055
+}
