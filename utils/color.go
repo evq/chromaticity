@@ -77,9 +77,11 @@ func RgbToRgbw(c colorful.Color, mir uint16) (rgb colorful.Color, w float64) {
 	rgb.G = c.G - white.G
 	rgb.B = c.B - white.B
 
-	rgb.R = rgb.R + (1.0 - math.Max(rgb.R, math.Max(rgb.G, rgb.B))) * c.R
-	rgb.G = rgb.G + (1.0 - math.Max(rgb.R, math.Max(rgb.G, rgb.B))) * c.G
-	rgb.B = rgb.B + (1.0 - math.Max(rgb.R, math.Max(rgb.G, rgb.B))) * c.B
+  max := math.Max(rgb.R, math.Max(rgb.G, rgb.B))
+
+	rgb.R = rgb.R + (1.0 - max) * c.R
+	rgb.G = rgb.G + (1.0 - max) * c.G
+	rgb.B = rgb.B + (1.0 - max) * c.B
 
 	return
 }
@@ -90,9 +92,13 @@ func RgbToRgbw(c colorful.Color, mir uint16) (rgb colorful.Color, w float64) {
 // http://www.sjbrown.co.uk/2004/05/14/gamma-correct-rendering/
 // http://www.brucelindbloom.com/Eqn_RGB_to_XYZ.html
 
-func Linearize(v float64) float64 {
-	if v <= 0.04045 {
-			return v / 12.92
-	}
-	return 1.055 * math.Pow(v, 1.0/2.4) - 0.055
+//func Linearize(v float64) float64 {
+	//if v <= 0.04045 {
+			//return v / 12.92
+	//}
+	//return 1.055 * math.Pow(v, 1.0/2.4) - 0.055
+//}
+
+func Linearize(v float64, gamma float64) float64 {
+	return math.Pow(v, gamma)
 }
