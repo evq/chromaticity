@@ -1,16 +1,16 @@
 package chromaticity
 
 import (
-  "time"
 	"github.com/emicklei/go-restful"
 	"github.com/evq/chromaticity/utils"
 	"github.com/lucasb-eyer/go-colorful"
 	"net/http"
-  //"fmt"
+	"time"
+	//"fmt"
 )
 
 type State struct {
-	Reachable bool   `json:"reachable"`
+	Reachable bool `json:"reachable"`
 	*ColorState
 }
 
@@ -20,32 +20,32 @@ type ColorState struct {
 	BriInc         int16     `json:"bri_inc,omitempty"`
 	Ct             uint16    `json:"ct"`
 	Effect         string    `json:"effect"`
-  EffectSpread   float64   `json:"effectspread"`
+	EffectSpread   float64   `json:"effectspread"`
 	Hue            uint16    `json:"hue"`
 	On             bool      `json:"on"`
 	TransitionTime uint16    `json:"transitiontime"`
 	Sat            uint8     `json:"sat"`
 	Xy             []float64 `json:"xy"`
 	Colormode      string    `json:"colormode"`
-  *EffectRoutine
+	*EffectRoutine
 }
 
 type EffectRoutine struct {
-  Signal chan bool `json:"-"`
-  Done bool `json:"-"`
+	Signal chan bool `json:"-"`
+	Done   bool      `json:"-"`
 }
 
 type LightResource struct {
-  Lights map[string]*Light `json:"lights"`
-  Groups map[string]Group `json:"groups"`
-  *ConfigInfo `json:"config"`
+	Lights      map[string]*Light `json:"lights"`
+	Groups      map[string]Group  `json:"groups"`
+	*ConfigInfo `json:"config"`
 }
 
 type Light interface {
 	SetColor(c colorful.Color)
 	SetColors(c []colorful.Color)
 	GetState() (s *State)
-  GetNumPixels() (p uint16)
+	GetNumPixels() (p uint16)
 }
 
 type LightInfo struct {
@@ -60,7 +60,7 @@ type LightInfo struct {
 
 func NewState() *State {
 	s := State{}
-  s.ColorState = &ColorState{}
+	s.ColorState = &ColorState{}
 	s.Alert = "none"
 	s.Alert = "none"
 	s.Effect = "none"
@@ -94,15 +94,12 @@ func (l LightResource) updateLightState(request *restful.Request, response *rest
 		response.WriteErrorString(http.StatusNotFound, "404: Light could not be found.")
 		return
 	}
-	//cs := (*light).GetState().ColorState
-	//cs.Xy = []float64{cs.Xy[0], cs.Xy[1]}
-	//request.ReadEntity(&cs)
+	cs := (*light).GetState().ColorState
+	last_color := cs.GetColor()
+	UpdateColorState(cs, request)
 
-  //fmt.Println(cs)
+	SendState(light, last_color)
 
-	//UpdateColorState(light, cs)
-	UpdateColorState((*light).GetState().ColorState, request)
-	SendState(light)
 	response.WriteEntity(light)
 }
 
@@ -147,7 +144,7 @@ func (state *State) SetColor(c colorful.Color) {
 	}
 }
 
-func (state *State) GetColor() (c colorful.Color) {
+func (state *ColorState) GetColor() (c colorful.Color) {
 	if !state.On {
 		return colorful.Xyz(0.0, 0.0, 0.0)
 	}
@@ -167,7 +164,7 @@ func (state *State) GetColor() (c colorful.Color) {
 }
 
 func UpdateColorState(dest *ColorState, req *restful.Request) {
-  cs := (*dest)
+	cs := (*dest)
 	cs.Xy = []float64{cs.Xy[0], cs.Xy[1]}
 	req.ReadEntity(&cs)
 
@@ -175,16 +172,16 @@ func UpdateColorState(dest *ColorState, req *restful.Request) {
 	if len(mode) != 0 {
 		dest.Colormode = mode
 	} else {
-    cs = ColorState{}
-    cs.Xy = []float64{0.0, 0.0}
-    cs.Effect = "none"
-    src := cs
-    req.ReadEntity(&src)
-    mode = _UpdateColorState(&cs, src)
-    if len(mode) != 0 {
-      dest.Colormode = mode
-    }
-  }
+		cs = ColorState{}
+		cs.Xy = []float64{0.0, 0.0}
+		cs.Effect = "none"
+		src := cs
+		req.ReadEntity(&src)
+		mode = _UpdateColorState(&cs, src)
+		if len(mode) != 0 {
+			dest.Colormode = mode
+		}
+	}
 }
 
 // This function is designed to take an updated copy of the colorstate
@@ -240,101 +237,121 @@ func _UpdateColorState(state *ColorState, s ColorState) string {
 	}
 	// alert
 
-  if s.Effect != state.Effect {
-    state.Effect = s.Effect
-  }
+	if s.Effect != state.Effect {
+		state.Effect = s.Effect
+	}
 
-  if s.TransitionTime != state.TransitionTime {
-    state.TransitionTime = s.TransitionTime
-  }
+	if s.TransitionTime != state.TransitionTime {
+		state.TransitionTime = s.TransitionTime
+	}
 
-  if s.EffectSpread != state.EffectSpread {
-    if s.EffectSpread >= 0.0 {
-      state.EffectSpread = s.EffectSpread
-    }
-  }
+	if s.EffectSpread != state.EffectSpread {
+		if s.EffectSpread >= 0.0 {
+			state.EffectSpread = s.EffectSpread
+		}
+	}
 
 	return mode
 }
 
-func SendState(l *Light) {
-  s := (*l).GetState()
-  if s.EffectRoutine != nil {
-    if !s.EffectRoutine.Done {
-      s.EffectRoutine.Done = true
-      s.EffectRoutine.Signal <- true
-      close(s.EffectRoutine.Signal)
-    }
-    s.EffectRoutine = nil
-  }
+func SendState(l *Light, last_color colorful.Color) {
+	s := (*l).GetState()
+	if s.EffectRoutine != nil {
+		if !s.EffectRoutine.Done {
+			s.EffectRoutine.Done = true
+			s.EffectRoutine.Signal <- true
+			close(s.EffectRoutine.Signal)
+		}
+		s.EffectRoutine = nil
+	}
 
-  switch s.Effect {
-    case "colorloop":
-      s.EffectRoutine = &EffectRoutine{make(chan bool), false}
-      go HsvLoop(s.EffectRoutine.Signal, l)
-    case "hsvloop":
-      s.EffectRoutine = &EffectRoutine{make(chan bool), false}
-      go HsvLoop(s.EffectRoutine.Signal, l)
-    case "hclloop":
-      s.EffectRoutine = &EffectRoutine{make(chan bool), false}
-      go HclLoop(s.EffectRoutine.Signal, l)
-    default:
-      (*l).SetColor(s.GetColor())
-  }
+	switch s.Effect {
+	case "colorloop":
+		s.EffectRoutine = &EffectRoutine{make(chan bool), false}
+		go HsvLoop(s.EffectRoutine.Signal, l)
+	case "hsvloop":
+		s.EffectRoutine = &EffectRoutine{make(chan bool), false}
+		go HsvLoop(s.EffectRoutine.Signal, l)
+	case "hclloop":
+		s.EffectRoutine = &EffectRoutine{make(chan bool), false}
+		go HclLoop(s.EffectRoutine.Signal, l)
+	default:
+		s.EffectRoutine = &EffectRoutine{make(chan bool), false}
+		go BlendColor(s.EffectRoutine, l, last_color)
+		//(*l).SetColor(s.GetColor())
+	}
+}
+
+func BlendColor(e *EffectRoutine, light *Light, last_color colorful.Color) {
+	s := (*light).GetState()
+	next_color := s.GetColor()
+	for i := 0; i < 100*int(s.TransitionTime); i++ {
+		select {
+		case <-e.Signal:
+			break
+		default:
+			color := last_color.BlendHcl(next_color, float64(i)/(100.0*float64(s.TransitionTime)))
+			(*light).SetColor(color)
+			time.Sleep(time.Millisecond)
+		}
+	}
+	(*light).SetColor(next_color)
+	e.Done = true
+	return
 }
 
 // A hsv based rainbow fade
 func HsvLoop(done chan bool, light *Light) {
-  s := (*light).GetState()
-  h, c, l := s.GetColor().Hsv()
-  for {
-    select {
-      case <- done:
-          return
-      default:
-        h = h + 1.00
-        if h >= 360.0 {
-          h = 0.0
-        }
-        j := h
-        colors := make([]colorful.Color, (*light).GetNumPixels())
-        for i := range colors {
-          colors[i] = colorful.Hsv(j,c,l)
-          j = j + ((*light).GetState().EffectSpread * 360.0 / float64((*light).GetNumPixels()))
-          if j >= 360.0 {
-            j = j - 360.0
-          }
-        }
-        (*light).SetColors(colors)
-        time.Sleep((10 + time.Duration(s.TransitionTime)) * time.Millisecond)
-    }
-  }
+	s := (*light).GetState()
+	h, c, l := s.GetColor().Hsv()
+	for {
+		select {
+		case <-done:
+			return
+		default:
+			h = h + 1.00
+			if h >= 360.0 {
+				h = 0.0
+			}
+			j := h
+			colors := make([]colorful.Color, (*light).GetNumPixels())
+			for i := range colors {
+				colors[i] = colorful.Hsv(j, c, l)
+				j = j + ((*light).GetState().EffectSpread * 360.0 / float64((*light).GetNumPixels()))
+				if j >= 360.0 {
+					j = j - 360.0
+				}
+			}
+			(*light).SetColors(colors)
+			time.Sleep((10 + time.Duration(s.TransitionTime)) * time.Millisecond)
+		}
+	}
 }
 
 // A hcl based rainbow fade
 func HclLoop(done chan bool, light *Light) {
-  s := (*light).GetState()
-  h, c, l := s.GetColor().Hcl()
-  for {
-    select {
-      case <- done:
-          return
-      default:
-        h = h + 1.00
-        if h >= 360.0 {
-          h = 0.0
-        }
-        j := h
-        colors := make([]colorful.Color, (*light).GetNumPixels())
-        for i := range colors {
-          colors[i] = colorful.Hcl(j,c,l)
-          j = j + ((*light).GetState().EffectSpread * 360.0 / float64((*light).GetNumPixels()))
-          if j >= 360.0 {
-            j = j - 360.0
-          }
-        }
-        (*light).SetColors(colors)
-        time.Sleep((10 + time.Duration(s.TransitionTime)) * time.Millisecond)
-    }
-  }
+	s := (*light).GetState()
+	h, c, l := s.GetColor().Hcl()
+	for {
+		select {
+		case <-done:
+			return
+		default:
+			h = h + 1.00
+			if h >= 360.0 {
+				h = 0.0
+			}
+			j := h
+			colors := make([]colorful.Color, (*light).GetNumPixels())
+			for i := range colors {
+				colors[i] = colorful.Hcl(j, c, l)
+				j = j + ((*light).GetState().EffectSpread * 360.0 / float64((*light).GetNumPixels()))
+				if j >= 360.0 {
+					j = j - 360.0
+				}
+			}
+			(*light).SetColors(colors)
+			time.Sleep((10 + time.Duration(s.TransitionTime)) * time.Millisecond)
+		}
+	}
 }

@@ -2,14 +2,14 @@ package opclient
 
 import (
 	"encoding/json"
+	"fmt"
 	chromaticity "github.com/evq/chromaticity/lib"
 	"github.com/evq/chromaticity/utils"
 	"github.com/kellydunn/go-opc"
 	"github.com/lucasb-eyer/go-colorful"
+	"reflect"
 	"strconv"
-  "reflect"
-  "fmt"
-  "time"
+	"time"
 )
 
 type Backend struct {
@@ -19,62 +19,62 @@ type Backend struct {
 type OPCLight struct {
 	chromaticity.LightInfo
 	LightState *chromaticity.State `json:"state"`
-	Chan       *Channel             `json:"-"`
+	Chan       *Channel            `json:"-"`
 }
 
 type OPCServer struct {
-	Name     string      `json:"name"`
-	Host     string      `json:"host"`
-	Port     string      `json:"port"`
-	RefreshRate     uint8      `json:"refreshrate"`
-	Type     string      `json:"type"`
-	White    uint16      `json:"white"`
-	Gamma    float64      `json:"gamma"`
-	Channels []Channel   `json:"channels"`
-	Client   *opc.Client `json:"-"`
+	Name        string      `json:"name"`
+	Host        string      `json:"host"`
+	Port        string      `json:"port"`
+	RefreshRate uint8       `json:"refreshrate"`
+	Type        string      `json:"type"`
+	White       uint16      `json:"white"`
+	Gamma       float64     `json:"gamma"`
+	Channels    []Channel   `json:"channels"`
+	Client      *opc.Client `json:"-"`
 }
 
 type Channel struct {
-	ID        uint8      `json:"id"`
-	NumPixels uint16     `json:"numPixels"`
-	Server    *OPCServer `json:"-"`
-  CurrentColors []colorful.Color `json:"-"`
-  NextColors []colorful.Color    `json:"-"`
+	ID            uint8            `json:"id"`
+	NumPixels     uint16           `json:"numPixels"`
+	Server        *OPCServer       `json:"-"`
+	CurrentColors []colorful.Color `json:"-"`
+	NextColors    []colorful.Color `json:"-"`
 }
 
 func (k OPCLight) SetColor(c colorful.Color) {
-  for i := range k.Chan.NextColors {
-    k.Chan.NextColors[i] = c
-  }
+	for i := range k.Chan.NextColors {
+		k.Chan.NextColors[i] = c
+	}
 }
 
 func (k OPCLight) SetColors(c []colorful.Color) {
-  for i := range c {
-    k.Chan.NextColors[i] = c[i]
-  }
+	for i := range c {
+		k.Chan.NextColors[i] = c[i]
+	}
 }
 
 func (b *Backend) Sync() {
-  for s := range b.Servers {
-    server := &b.Servers[s]
-    go server.Sync()
-  }
+	for s := range b.Servers {
+		server := &b.Servers[s]
+		go server.Sync()
+	}
 }
 
 func (server *OPCServer) Sync() {
-  for {
-    for c := range server.Channels {
-      channel := server.Channels[c]
-      if !reflect.DeepEqual(channel.NextColors, channel.CurrentColors) {
-        msg := opc.NewMessage(channel.ID)
+	for {
+		for c := range server.Channels {
+			channel := server.Channels[c]
+			if !reflect.DeepEqual(channel.NextColors, channel.CurrentColors) {
+				msg := opc.NewMessage(channel.ID)
 				if server.Type == "RGB" {
 					msg.SetLength(channel.NumPixels * 3)
 				} else if server.Type == "RGBW" {
 					msg.SetLength(2 * channel.NumPixels * 3)
 				}
 
-        for i := 0; i < int(channel.NumPixels); i++ {
-          p := channel.NextColors[i].Clamped()
+				for i := 0; i < int(channel.NumPixels); i++ {
+					p := channel.NextColors[i].Clamped()
 					if server.Type == "RGB" {
 						msg.SetPixelColor(
 							i,
@@ -82,7 +82,7 @@ func (server *OPCServer) Sync() {
 							uint8(utils.Linearize(p.G, server.Gamma)*255),
 							uint8(utils.Linearize(p.B, server.Gamma)*255),
 						)
-				  } else if server.Type == "RGBW" {
+					} else if server.Type == "RGBW" {
 						rgb, w := utils.RgbToRgbw(p, server.White)
 						rgb = rgb.Clamped()
 						msg.SetPixelColor(
@@ -98,45 +98,45 @@ func (server *OPCServer) Sync() {
 							0,
 						)
 					}
-          channel.CurrentColors[i] = channel.NextColors[i]
-        }
+					channel.CurrentColors[i] = channel.NextColors[i]
+				}
 
-        server.Connect()
+				server.Connect()
 
-        for {
-          if server.Client != nil {
-            err := server.Client.Send(msg)
-            if err != nil {
-              fmt.Print("ERROR!:")
-              fmt.Print(err.Error())
-              server.Client = nil
-              server.Connect()
-              continue
-            }
-          }
-          break
-        }
-      }
-    }
-    time.Sleep(time.Duration(1000.0 / float64(server.RefreshRate)) * time.Millisecond)
-  }
+				for {
+					if server.Client != nil {
+						err := server.Client.Send(msg)
+						if err != nil {
+							fmt.Print("ERROR!:")
+							fmt.Print(err.Error())
+							server.Client = nil
+							server.Connect()
+							continue
+						}
+					}
+					break
+				}
+			}
+		}
+		time.Sleep(time.Duration(1000.0/float64(server.RefreshRate)) * time.Millisecond)
+	}
 }
 
 func (server *OPCServer) Connect() {
-  if server.Client == nil {
-    server.Client = opc.NewClient()
-    hostPort := server.Host + ":" + server.Port
-    err := server.Client.Connect("tcp", hostPort)
-    if err != nil {
-      fmt.Print("ERROR!:")
-      fmt.Print(err.Error())
-      server.Client = nil
-    }
-  }
+	if server.Client == nil {
+		server.Client = opc.NewClient()
+		hostPort := server.Host + ":" + server.Port
+		err := server.Client.Connect("tcp", hostPort)
+		if err != nil {
+			fmt.Print("ERROR!:")
+			fmt.Print(err.Error())
+			server.Client = nil
+		}
+	}
 }
 
 func (k OPCLight) GetNumPixels() uint16 {
-  return k.Chan.NumPixels
+	return k.Chan.NumPixels
 }
 
 func (k OPCLight) GetState() *chromaticity.State {
@@ -162,8 +162,8 @@ func (b *Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
 			light := OPCLight{}
 			light.Chan = &server.Channels[j]
 			light.Chan.Server = &server
-      light.Chan.CurrentColors = make([]colorful.Color, light.Chan.NumPixels)
-      light.Chan.NextColors = make([]colorful.Color, light.Chan.NumPixels)
+			light.Chan.CurrentColors = make([]colorful.Color, light.Chan.NumPixels)
+			light.Chan.NextColors = make([]colorful.Color, light.Chan.NumPixels)
 			light.Type = "OPC Light"
 			light.Name = server.Name + " Chan:" + strconv.Itoa(int(light.Chan.ID))
 			light.ModelId = server.Type

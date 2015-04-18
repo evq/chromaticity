@@ -8,6 +8,6 @@ import (
 const API_PORT = "80"
 
 func main() {
-  ssdp.StartServer(API_PORT)
+	ssdp.StartServer(API_PORT)
 	api.StartServer(API_PORT)
 }

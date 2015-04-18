@@ -1,6 +1,8 @@
 package api
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful/swagger"
 	"github.com/evq/chromaticity/backends"
@@ -9,10 +11,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
-  "encoding/json"
-  "fmt"
-  //"io/ioutil"
-  "text/template"
+	//"io/ioutil"
+	"text/template"
 )
 
 type AuthHandler struct {
@@ -20,70 +20,70 @@ type AuthHandler struct {
 }
 
 type UserInfo struct {
-  DeviceType string `json:"devicetype"`
-  UserName
+	DeviceType string `json:"devicetype"`
+	UserName
 }
 
 type UserName struct {
-  UN string `json:"username"`
+	UN string `json:"username"`
 }
 
 // Whitelist goes here
 
 func SsdpDescription(resp http.ResponseWriter, req *http.Request) {
-  t := template.New("description.xml")
-  var err error
-  t, err = t.ParseFiles(os.Getenv("GOPATH") + "/src/github.com/evq/chromaticity/servers/ssdp/description.xml")
-  if err != nil {
-    log.Println(err)
-  }
-  t.Execute(resp, req.Host)
+	t := template.New("description.xml")
+	var err error
+	t, err = t.ParseFiles(os.Getenv("GOPATH") + "/src/github.com/evq/chromaticity/servers/ssdp/description.xml")
+	if err != nil {
+		log.Println(err)
+	}
+	t.Execute(resp, req.Host)
 }
 
 func UserCreate(resp http.ResponseWriter, req *http.Request) {
-    decoder := json.NewDecoder(req.Body)
-    var u UserInfo
-    err := decoder.Decode(&u)
-    if err != nil {
-      // FIXME
-      fmt.Fprintf(resp, "ERROR")
-    }
-    jsonUN, _ := json.Marshal(u.UserName)
-    fmt.Fprintf(resp, `[{"success": %s}]`, string(jsonUN))
+	decoder := json.NewDecoder(req.Body)
+	var u UserInfo
+	err := decoder.Decode(&u)
+	if err != nil {
+		// FIXME
+		fmt.Fprintf(resp, "ERROR")
+	}
+	jsonUN, _ := json.Marshal(u.UserName)
+	fmt.Fprintf(resp, `[{"success": %s}]`, string(jsonUN))
 }
 
 func (a *AuthHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
-  if req.Header.Get("Content-Type") == "" {
-    req.Header.Set("Content-Type","application/json")
-  }
-  resp.Header().Set("Access-Control-Allow-Origin", "*")
-  resp.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-  resp.Header().Set("Access-Control-Allow-Methods", "HEAD,GET,PUT,DELETE,OPTIONS")
+	if req.Header.Get("Content-Type") == "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	resp.Header().Set("Access-Control-Allow-Origin", "*")
+	resp.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	resp.Header().Set("Access-Control-Allow-Methods", "HEAD,GET,PUT,DELETE,OPTIONS")
 
-  url := req.URL.Path
-  log.Printf("%s %s\n", req.Method, url)
+	url := req.URL.Path
+	log.Printf("%s %s\n", req.Method, url)
 
-  if req.Method == "OPTIONS" {
-    return
-  }
+	if req.Method == "OPTIONS" {
+		return
+	}
 
-  if url == "/api/" {
-    UserCreate(resp, req)
-    return
-  }
+	if url == "/api/" {
+		UserCreate(resp, req)
+		return
+	}
 
 	url = url[len("/api/"):]
 	i := strings.Index(url, "/")
 
-  if i == -1 {
-    req.URL.Path = "/config/all"
-    a.chainedHandler.ServeHTTP(resp, req)
-    return
-  }
+	if i == -1 {
+		req.URL.Path = "/config/all"
+		a.chainedHandler.ServeHTTP(resp, req)
+		return
+	}
 
 	token := url[:i]
 
-  // Strip token for downstream handler
+	// Strip token for downstream handler
 	req.URL.Path = url[len(token):]
 
 	// Do token matching here :)
@@ -93,19 +93,19 @@ func (a *AuthHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 
 func StartServer(port string) {
 	l := &chromaticity.LightResource{}
-  l.ConfigInfo = chromaticity.NewConfigInfo()
+	l.ConfigInfo = chromaticity.NewConfigInfo()
 	backends.Load(l)
 
 	wsContainer := restful.NewContainer()
 
 	// Register apis
-  l.RegisterConfigApi(wsContainer)
+	l.RegisterConfigApi(wsContainer)
 	l.RegisterLightsApi(wsContainer)
 	l.RegisterGroupsApi(wsContainer)
 	backends.RegisterDiscoveryApi(wsContainer, l)
 
-  // Start goroutines to send pixel data
-  backends.Sync()
+	// Start goroutines to send pixel data
+	backends.Sync()
 
 	// Uncomment to add some swagger
 	config := swagger.Config{
@@ -114,7 +114,7 @@ func StartServer(port string) {
 		ApiPath:         "/swagger/apidocs.json",
 		SwaggerPath:     "/swagger/apidocs/",
 		SwaggerFilePath: os.Getenv("GOPATH") + "/src/github.com/evq/chromaticity/swagger-ui/dist",
-  }
+	}
 
 	//Container just for swagger
 	swContainer := restful.NewContainer()
@@ -127,5 +127,5 @@ func StartServer(port string) {
 	http.Handle("/api/", &AuthHandler{wsContainer})
 
 	log.Printf("[chromaticity] start listening on localhost:" + port)
-	log.Fatal(http.ListenAndServe(":" + port, nil))
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

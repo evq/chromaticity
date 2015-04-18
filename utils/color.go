@@ -46,13 +46,13 @@ func FromMirads(temp uint16, bri uint8) colorful.Color {
 }
 
 func WhiteCmpt(c colorful.Color, w colorful.Color) float64 {
-	_,sat,_ := c.Hsv()
+	_, sat, _ := c.Hsv()
 	diff := w.DistanceCIE94(c)
 	if diff > 1.0 {
 		diff = 1.0
 	}
 
-	mag := c.R + c.G + c.B / 3.0
+	mag := c.R + c.G + c.B/3.0
 	if mag > 1.0 {
 		mag = 1.0
 	}
@@ -63,7 +63,7 @@ func WhiteCmpt(c colorful.Color, w colorful.Color) float64 {
 		mag = 1.0 / mag
 	}
 
-	return (1.0 - diff) * (1.0 - math.Pow(sat,3)) * mag
+	return (1.0 - diff) * (1.0 - math.Pow(sat, 3)) * mag
 }
 
 func RgbToRgbw(c colorful.Color, mir uint16) (rgb colorful.Color, w float64) {
@@ -77,11 +77,11 @@ func RgbToRgbw(c colorful.Color, mir uint16) (rgb colorful.Color, w float64) {
 	rgb.G = c.G - white.G
 	rgb.B = c.B - white.B
 
-  max := math.Max(rgb.R, math.Max(rgb.G, rgb.B))
+	max := math.Max(rgb.R, math.Max(rgb.G, rgb.B))
 
-	rgb.R = rgb.R + (1.0 - max) * c.R
-	rgb.G = rgb.G + (1.0 - max) * c.G
-	rgb.B = rgb.B + (1.0 - max) * c.B
+	rgb.R = rgb.R + (1.0-max)*c.R
+	rgb.G = rgb.G + (1.0-max)*c.G
+	rgb.B = rgb.B + (1.0-max)*c.B
 
 	return
 }
@@ -93,10 +93,10 @@ func RgbToRgbw(c colorful.Color, mir uint16) (rgb colorful.Color, w float64) {
 // http://www.brucelindbloom.com/Eqn_RGB_to_XYZ.html
 
 //func Linearize(v float64) float64 {
-	//if v <= 0.04045 {
-			//return v / 12.92
-	//}
-	//return 1.055 * math.Pow(v, 1.0/2.4) - 0.055
+//if v <= 0.04045 {
+//return v / 12.92
+//}
+//return 1.055 * math.Pow(v, 1.0/2.4) - 0.055
 //}
 
 func Linearize(v float64, gamma float64) float64 {
