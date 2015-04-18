@@ -17,6 +17,7 @@ type State struct {
 type ColorState struct {
 	Alert          string    `json:"alert"`
 	Bri            uint8     `json:"bri"`
+	BriInc         int16     `json:"bri_inc,omitempty"`
 	Ct             uint16    `json:"ct"`
 	Effect         string    `json:"effect"`
   EffectSpread   float64   `json:"effectspread"`
@@ -226,6 +227,12 @@ func _UpdateColorState(state *ColorState, s ColorState) string {
 
 	if s.Bri != state.Bri {
 		state.Bri = s.Bri
+	}
+
+	if s.BriInc != state.BriInc {
+		if s.BriInc > -254 && s.BriInc < 254 {
+			state.Bri = uint8(int16(state.Bri) + s.BriInc)
+		}
 	}
 
 	if s.On != state.On {
