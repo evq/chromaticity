@@ -46,6 +46,7 @@ func (b Backend) PSSync(ps *kinet.PowerSupply) {
 
 		arr := make([]color.Color, len(b.NextColor[ps.Mac]))
 		for e := range arr {
+			// FIXME, switch to utils implementation of Clamp
 			r, g, bb := (*b.NextColor[ps.Mac][e]).Clamped().RGB255()
 			arr[e] = color.RGBA{r, g, bb, 0xFF}
 			if *b.NextColor[ps.Mac][e] != *b.CurrentColor[ps.Mac][e] {

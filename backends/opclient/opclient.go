@@ -74,7 +74,8 @@ func (server *OPCServer) Sync() {
 				}
 
 				for i := 0; i < int(channel.NumPixels); i++ {
-					p := channel.NextColors[i].Clamped()
+					p := channel.NextColors[i]
+					utils.Clamp(&p)
 					if server.Type == "RGB" {
 						msg.SetPixelColor(
 							i,
@@ -84,7 +85,7 @@ func (server *OPCServer) Sync() {
 						)
 					} else if server.Type == "RGBW" {
 						rgb, w := utils.RgbToRgbw(p, server.White)
-						rgb = rgb.Clamped()
+						utils.Clamp(&rgb)
 						msg.SetPixelColor(
 							2*i,
 							uint8(utils.Linearize(rgb.R, server.Gamma)*255),

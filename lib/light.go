@@ -285,12 +285,14 @@ func SendState(l *Light, last_color colorful.Color) {
 func BlendColor(e *EffectRoutine, light *Light, last_color colorful.Color) {
 	s := (*light).GetState()
 	next_color := s.GetColor()
+	utils.Clamp(&next_color)
 	for i := 0; i < 100*int(s.TransitionTime); i++ {
 		select {
 		case <-e.Signal:
 			break
 		default:
-			color := last_color.BlendHcl(next_color, float64(i)/(100.0*float64(s.TransitionTime)))
+			color := last_color.BlendRgb(next_color, float64(i)/(100.0*float64(s.TransitionTime)))
+			//fmt.Println(color)
 			(*light).SetColor(color)
 			time.Sleep(time.Millisecond)
 		}
