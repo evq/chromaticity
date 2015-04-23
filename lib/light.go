@@ -275,6 +275,9 @@ func SendState(l *Light, last_color colorful.Color) {
 	case "hclloop":
 		s.EffectRoutine = &EffectRoutine{make(chan bool), false}
 		go HclLoop(s.EffectRoutine.Signal, l)
+	case "rainbow":
+		s.EffectRoutine = &EffectRoutine{make(chan bool), false}
+		go RainbowLoop(s.EffectRoutine.Signal, l)
 	default:
 		s.EffectRoutine = &EffectRoutine{make(chan bool), false}
 		go BlendColor(s.EffectRoutine, l, last_color)
@@ -300,6 +303,34 @@ func BlendColor(e *EffectRoutine, light *Light, last_color colorful.Color) {
 	(*light).SetColor(next_color)
 	e.Done = true
 	return
+}
+
+// A hsv based rainbow fade
+func RainbowLoop(done chan bool, light *Light) {
+	s := (*light).GetState()
+	h, c, l := s.GetColor().Hsv()
+	for {
+		select {
+		case <-done:
+			return
+		default:
+			h = h + 1.00
+			if h >= 360.0 {
+				h = 0.0
+			}
+			j := h
+			colors := make([]colorful.Color, (*light).GetNumPixels())
+			for i := range colors {
+				colors[i] = utils.Hsv2Rainbow(j, c, l)
+				j = j + ((*light).GetState().EffectSpread * 360.0 / float64((*light).GetNumPixels()))
+				if j >= 360.0 {
+					j = j - 360.0
+				}
+			}
+			(*light).SetColors(colors)
+			time.Sleep((10 + time.Duration(s.TransitionTime)) * time.Millisecond)
+		}
+	}
 }
 
 // A hsv based rainbow fade

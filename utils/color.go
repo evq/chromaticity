@@ -3,7 +3,6 @@ package utils
 import (
 	"github.com/lucasb-eyer/go-colorful"
 	"math"
-	"fmt"
 )
 
 // McCamy cubic approximation
@@ -53,33 +52,26 @@ func FromMirads(temp uint16, bri uint8) colorful.Color {
 func WhiteCmpt(c colorful.Color, w colorful.Color) float64 {
 	_, sat, _ := c.Hsv()
 	diff := w.DistanceCIE94(c)
-	fmt.Println("diff:", diff)
 	if diff > 1.0 {
 		diff = 1.0
 	}
 
-	fmt.Println("sat:", sat)
 	return (1.0 - diff) * (1.0 - math.Pow(sat, 5))
 }
 
 func RgbToRgbw(c colorful.Color, mir uint16) (rgb colorful.Color, w float64) {
 	white := FromMirads(mir, 255)
-	fmt.Println("wr:", white.R, "wg:", white.G, "wb:", white.B)
 	Clamp(&white)
-	fmt.Println("wr:", white.R, "wg:", white.G, "wb:", white.B)
 
 	_, _, v := c.Hsv()
-	fmt.Println("v:", v)
 	Maximize(&c)
 
 	w = WhiteCmpt(c, white)
-	fmt.Println("w:", w)
 
 	white.R = w * white.R
 	white.G = w * white.G
 	white.B = w * white.B
 
-	fmt.Println("cr:", c.R, "wg:", c.G, "wb:", c.B)
 	rgb.R = c.R - white.R
 	rgb.G = c.G - white.G
 	rgb.B = c.B - white.B
@@ -145,7 +137,81 @@ func Maximize(c * colorful.Color) {
 	return
 }
 
-//func BlendRgb(cc colorful.Color, nc colorful.Color, v float64) {
+// hsv2rgb_rainbow converted to operate on floats 0..1
+// from https://github.com/FastLED/FastLED/blob/master/hsv2rgb.cpp
+func Hsv2Rainbow(h float64, s float64, v float64) colorful.Color {
+	h = h / 360.0
 
-	
-//}
+	// offset = h & 0x1F
+	// offset8 = offset * 8
+	offset := 8.0 * math.Mod(h, 0.125)
+	third := offset / 3.0
+	twothird := offset * 2.0 / 3.0
+
+
+	r := 0.0
+	g := 0.0
+	b := 0.0
+	if h < 0.5 { // ! (h & 0x80)
+		if h < 0.25 { // ! (h & 0x40)
+			if h < 0.125 { // ! (h & 0x20)
+				r = 1.0 - third
+				g = third
+				b = 0
+			} else {
+				// Y1
+				r = 0.666 // 171
+				g = 0.333 + third //85
+				b = 0
+				// Y2
+				//r = 0.666 + third
+				//g = 0.333 + twothird
+				//b = 0
+			}
+		} else {
+			if h < 0.375 { // ! (h & 0x20)
+				// Y1
+				r = 0.666 - twothird
+				g = 0.666 + third
+				b = 0
+				// Y2
+				//r = 1.0 - offset
+				//g = 1.0
+				//b = 0.0
+			} else {
+				r = 0
+				g = 1.0 - third
+				b = third
+			}
+		}
+	} else {
+		if h < 0.75 { // ! (h & 0x40)
+			if h < 0.625 { // ! (h & 20)
+				r = 0
+				g = 0.666 - twothird
+				b = 0.333 + twothird
+			} else {
+				r = third
+				g = 0
+				b = 1.0 - third
+			}
+		} else {
+			if h < 0.875 { // ! (h & 20)
+				r = 0.333 + third
+				g = 0
+				b = 0.666 - third
+			} else {
+				r = 0.666 + third
+				g = 0
+				b = 0.333 - third
+			}
+		}
+	}
+	g *= 0.5
+
+	r *= v
+	g *= v
+	b *= v
+
+	return colorful.Color{r,g,b}
+}
