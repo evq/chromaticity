@@ -4,18 +4,18 @@
 		<major>1</major>
 		<minor>0</minor>
 	</specVersion>
-  <URLBase>http://{{ . }}/</URLBase>
+  <URLBase>http://{{.IP}}:{{.Port}}/</URLBase>
 	<device>
 		<deviceType>urn:schemas-upnp-org:device:Basic:1</deviceType>
-		<friendlyName>Philips hue Bridge Router</friendlyName>
-		<manufacturer>Sagen</manufacturer>
-		<manufacturerURL>http://github.com/sagen</manufacturerURL>
-		<modelDescription>Philips hue Personal Wireless Lighting Bridge Router</modelDescription>
+    <friendlyName>Philips hue ({{.IP}})</friendlyName>
+		<manufacturer>Royal Philips Electronics</manufacturer>
+		<manufacturerURL>http://www.philips.com</manufacturerURL>
+		<modelDescription>Philips hue Personal Wireless Lighting</modelDescription>
 		<modelName>Philips hue bridge 2012 Router</modelName>
 		<modelNumber>929000226503</modelNumber>
 		<modelURL>http://www.meethue.com</modelURL>
-		<serialNumber>nope</serialNumber>
-		<UDN>uuid:2f402f80-da50-11e1-9b23-nydalenlys</UDN>
+		<serialNumber>0017880967e7</serialNumber>
+    <UDN>uuid:2f402f80-da50-11e1-9b23-0017880967e7</UDN>
 		<serviceList>
 			<service>
 				<serviceType>(null)</serviceType>

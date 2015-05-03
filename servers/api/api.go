@@ -15,6 +15,11 @@ import (
 	"text/template"
 )
 
+type Service struct {
+	IP   string
+	Port string
+}
+
 type AuthHandler struct {
 	chainedHandler http.Handler
 }
@@ -37,7 +42,16 @@ func SsdpDescription(resp http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Println(err)
 	}
-	t.Execute(resp, req.Host)
+	s := Service{}
+	if !strings.Contains(req.Host,":") {
+		s.IP = req.Host
+		s.Port = "80"
+	} else {
+		split := strings.Split(req.Host,":")
+		s.IP = split[0]
+		s.Port = split[1]
+	}
+	t.Execute(resp, s)
 }
 
 func UserCreate(resp http.ResponseWriter, req *http.Request) {

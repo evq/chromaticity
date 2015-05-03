@@ -20,7 +20,7 @@ EXT:
 LOCATION: http://{{.IP}}:{{.Port}}/description.xml
 SERVER: FreeRTOS/6.0.5, UPnP/1.0, IpBridge/0.1
 ST: upnp:rootdevice
-USN: uuid:2f402f80-da50-11e1-9b23-nydalenlys::upnp:rootdevice
+USN: uuid:2f402f80-da50-11e1-9b23-0017880967e7
 `
 )
 

@@ -46,6 +46,11 @@ func (g Group) SetColors(c []colorful.Color) {
 	}
 }
 
+func (g Group) GetInfo() *LightInfo {
+	info := LightInfo{}
+	return &info
+}
+
 func (g Group) GetState() *State {
 	state := State{}
 	state.ColorState = g.State

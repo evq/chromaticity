@@ -20,10 +20,10 @@ type ColorState struct {
 	BriInc         int16     `json:"bri_inc,omitempty"`
 	Ct             uint16    `json:"ct"`
 	Effect         string    `json:"effect"`
-	EffectSpread   float64   `json:"effectspread"`
+	EffectSpread   float64   `json:"effectspread,omitempty"`
 	Hue            uint16    `json:"hue"`
 	On             bool      `json:"on"`
-	TransitionTime uint16    `json:"transitiontime"`
+	TransitionTime uint16    `json:"transitiontime,omitempty"`
 	Sat            uint8     `json:"sat"`
 	Xy             []float64 `json:"xy"`
 	Colormode      string    `json:"colormode"`
@@ -44,18 +44,34 @@ type LightResource struct {
 type Light interface {
 	SetColor(c colorful.Color)
 	SetColors(c []colorful.Color)
+	GetInfo() (i *LightInfo)
 	GetState() (s *State)
 	GetNumPixels() (p uint16)
 }
 
 type LightInfo struct {
 	// Api def limits these strings to certain length, FIXME if doesn't work
-	Type      string `json:"type"`
-	Name      string `json:"name"`
-	ModelId   string `json:"modelid"`
-	SwVersion string `json:"swversion"`
+	Type      string `json:"type,omitempty"`
+	Name      string `json:"name,omitempty"`
+	ModelId   string `json:"modelid,omitempty"`
+	SwVersion string `json:"swversion,omitempty"`
 	// Api def claims unimplemented atm, FIXME if doesn't work
-	PointSymbol map[string]string `json:"-"`
+	PointSymbol map[string]string `json:"pointsymbol"`
+}
+
+type LuxLight struct {
+	State *LuxState `json:"state"`
+	*LightInfo
+}
+
+// Omit color fields for white only lights
+type LuxState struct {
+	*State
+	Ct             bool    `json:"ct,omitempty"`
+	Hue            bool    `json:"hue,omitempty"`
+	Sat            bool    `json:"sat,omitempty"`
+	Xy             bool    `json:"xy,omitempty"`
+	Colormode      bool    `json:"colormode,omitempty"`
 }
 
 func NewState() *State {
@@ -79,11 +95,11 @@ func (l LightResource) findLight(request *restful.Request, response *restful.Res
 		response.WriteErrorString(http.StatusNotFound, "404: Light could not be found.")
 		return
 	}
-	response.WriteEntity(light)
+	response.WriteEntity(WrapLight(light))
 }
 
 func (l LightResource) listLights(request *restful.Request, response *restful.Response) {
-	response.WriteEntity(l.Lights)
+	response.WriteEntity(WrapLights(l.Lights))
 }
 
 func (l LightResource) updateLightState(request *restful.Request, response *restful.Response) {
@@ -100,7 +116,7 @@ func (l LightResource) updateLightState(request *restful.Request, response *rest
 
 	SendState(light, last_color)
 
-	response.WriteEntity(light)
+	response.WriteEntity(WrapLight(light))
 }
 
 func (l LightResource) RegisterLightsApi(container *restful.Container) {
@@ -127,6 +143,29 @@ func (l LightResource) _RegisterLightsApi(ws *restful.WebService) {
 		Operation("updateLightState").
 		Param(ws.PathParameter("light-id", "identifier of the light").DataType("int")).
 		Reads(ColorState{}))
+}
+
+func WrapLights(l map[string]*Light) map[string]interface{} {
+	lights := make(map[string]interface{})
+	for k, v := range l {
+		lights[k] = WrapLight(v)
+	}
+	return lights
+}
+
+
+func WrapLight(l *Light) interface{} {
+	info := (*l).GetInfo()
+	if (*info).Type == "Dimmable light" {
+		luxs := LuxState{}
+		luxs.State = (*l).GetState()
+		lux := LuxLight{}
+		lux.State = &luxs
+	  lux.LightInfo = info
+		return lux
+	} else {
+		return l
+	}
 }
 
 func (state *State) SetColor(c colorful.Color) {

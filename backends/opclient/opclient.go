@@ -17,7 +17,7 @@ type Backend struct {
 }
 
 type OPCLight struct {
-	chromaticity.LightInfo
+	*chromaticity.LightInfo
 	LightState *chromaticity.State `json:"state"`
 	Chan       *Channel            `json:"-"`
 }
@@ -67,23 +67,16 @@ func (server *OPCServer) Sync() {
 			channel := server.Channels[c]
 			if !reflect.DeepEqual(channel.NextColors, channel.CurrentColors) {
 				msg := opc.NewMessage(channel.ID)
-				if server.Type == "RGB" {
-					msg.SetLength(channel.NumPixels * 3)
-				} else if server.Type == "RGBW" {
+				if server.Type == "RGBW" {
 					msg.SetLength(2 * channel.NumPixels * 3)
+				} else {
+					msg.SetLength(channel.NumPixels * 3)
 				}
 
 				for i := 0; i < int(channel.NumPixels); i++ {
 					p := channel.NextColors[i]
 					utils.Clamp(&p)
-					if server.Type == "RGB" {
-						msg.SetPixelColor(
-							i,
-							uint8(utils.Linearize(p.R, server.Gamma)*255),
-							uint8(utils.Linearize(p.G, server.Gamma)*255),
-							uint8(utils.Linearize(p.B, server.Gamma)*255),
-						)
-					} else if server.Type == "RGBW" {
+					if server.Type == "RGBW" {
 						rgb, w := utils.RgbToRgbw(p, server.White)
 						utils.Clamp(&rgb)
 						msg.SetPixelColor(
@@ -97,6 +90,13 @@ func (server *OPCServer) Sync() {
 							uint8(utils.Linearize(w, server.Gamma)*255),
 							0,
 							0,
+						)
+					} else {
+						msg.SetPixelColor(
+							i,
+							uint8(utils.Linearize(p.R, server.Gamma)*255),
+							uint8(utils.Linearize(p.G, server.Gamma)*255),
+							uint8(utils.Linearize(p.B, server.Gamma)*255),
 						)
 					}
 					channel.CurrentColors[i] = channel.NextColors[i]
@@ -140,6 +140,10 @@ func (k OPCLight) GetNumPixels() uint16 {
 	return k.Chan.NumPixels
 }
 
+func (k OPCLight) GetInfo() *chromaticity.LightInfo {
+	return k.LightInfo
+}
+
 func (k OPCLight) GetState() *chromaticity.State {
 	return k.LightState
 }
@@ -161,13 +165,22 @@ func (b *Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
 		server := b.Servers[i]
 		for j := range server.Channels {
 			light := OPCLight{}
+			light.LightInfo = &chromaticity.LightInfo{}
 			light.Chan = &server.Channels[j]
 			light.Chan.Server = &server
 			light.Chan.CurrentColors = make([]colorful.Color, light.Chan.NumPixels)
 			light.Chan.NextColors = make([]colorful.Color, light.Chan.NumPixels)
-			light.Type = "OPC Light"
+			if server.Type == "W" {
+				light.Type = "Dimmable light"
+			} else {
+				light.Type = "Extended color light"
+			}
+			light.PointSymbol = make(map[string]string, 8)
+			for k:= 1; k < 9; k++ {
+				light.PointSymbol[strconv.Itoa(k)] = "none"
+			}
 			light.Name = server.Name + " Chan:" + strconv.Itoa(int(light.Chan.ID))
-			light.ModelId = server.Type
+			light.ModelId = "OPC-" + server.Type
 			light.SwVersion = "0"
 
 			light.LightState = chromaticity.NewState()

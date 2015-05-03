@@ -17,7 +17,7 @@ type Backend struct {
 }
 
 type KinetLight struct {
-	chromaticity.LightInfo
+	*chromaticity.LightInfo
 	LightState *chromaticity.State `json:"state"`
 	Fixture    *kinet.Fixture      `json:"-"`
 	Backend    `json:"-"`
@@ -67,6 +67,10 @@ func (b Backend) PSSync(ps *kinet.PowerSupply) {
 
 func (k KinetLight) GetNumPixels() uint16 {
 	return 1
+}
+
+func (k KinetLight) GetInfo() *chromaticity.LightInfo {
+	return k.LightInfo
 }
 
 func (k KinetLight) GetState() *chromaticity.State {
@@ -171,10 +175,16 @@ func LightsFrom(ps *kinet.PowerSupply, nextColor []*colorful.Color) []chromatici
 		k.LightState = chromaticity.NewState()
 		k.LightState.SetColor(c)
 
-		k.Type = "Philips ColorKinetics"
+		k.LightInfo = &chromaticity.LightInfo{}
+		k.Type = "Extended color light"
 		k.Name = ps.Name + " Serial:" + k.Fixture.Serial // default, make this changable
-		k.ModelId = ps.Type
+		k.ModelId = "ColorKinetics " + ps.Type
 		k.SwVersion = ps.FWVersion
+
+		k.PointSymbol = make(map[string]string, 8)
+		for l:= 1; l < 9; l++ {
+			k.PointSymbol[strconv.Itoa(l)] = "none"
+		}
 
 		lights = append(lights, &k)
 	}
