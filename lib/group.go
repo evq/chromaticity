@@ -8,6 +8,12 @@ import (
 	"net/http"
 )
 
+// Group is a composition of Lights
+// Can set a color, set colors... similar to a render loop
+// setColor set the internal render buffer
+// Calls sync 120 times a second on simpler devices. Philips Hue devices 
+// automatically call sync()
+
 type Group struct {
 	GroupInfo
 	State    *ColorState `json:"action"`

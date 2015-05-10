@@ -35,6 +35,8 @@ type UserName struct {
 
 // Whitelist goes here
 
+// Takes the description.xml file with information and the
+// HTTP request. Generates an HTTP response
 func SsdpDescription(resp http.ResponseWriter, req *http.Request) {
 	t := template.New("description.xml")
 	var err error
@@ -54,6 +56,8 @@ func SsdpDescription(resp http.ResponseWriter, req *http.Request) {
 	t.Execute(resp, s)
 }
 
+// Parses JSON values from the HTTP request
+// and generates a HTTP response to specify a success or failure
 func UserCreate(resp http.ResponseWriter, req *http.Request) {
 	decoder := json.NewDecoder(req.Body)
 	var u UserInfo
@@ -66,6 +70,8 @@ func UserCreate(resp http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(resp, `[{"success": %s}]`, string(jsonUN))
 }
 
+// Sets up the HTTP response header
+// Recursive call?? Maybe it's to move onto the next HTTP req...
 func (a *AuthHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "application/json")
