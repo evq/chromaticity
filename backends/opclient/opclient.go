@@ -24,8 +24,7 @@ type OPCLight struct {
 
 type OPCServer struct {
 	Name        string      `json:"name"`
-	Host        string      `json:"host"`
-	Port        string      `json:"port"`
+	Address     string      `json:"address"`
 	RefreshRate uint8       `json:"refreshrate"`
 	Type        string      `json:"type"`
 	White       uint16      `json:"white"`
@@ -126,8 +125,7 @@ func (server *OPCServer) Sync() {
 func (server *OPCServer) Connect() {
 	if server.Client == nil {
 		server.Client = opc.NewClient()
-		hostPort := server.Host + ":" + server.Port
-		err := server.Client.Connect("tcp", hostPort)
+		err := server.Client.Connect("tcp", server.Address)
 		if err != nil {
 			fmt.Print("ERROR!:")
 			fmt.Print(err.Error())
@@ -146,6 +144,10 @@ func (k OPCLight) GetInfo() *chromaticity.LightInfo {
 
 func (k OPCLight) GetState() *chromaticity.State {
 	return k.LightState
+}
+
+func (k OPCLight) GetType() string {
+	return "opc"
 }
 
 func (b *Backend) GetType() string {

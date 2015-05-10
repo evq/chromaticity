@@ -47,6 +47,7 @@ type Light interface {
 	GetInfo() (i *LightInfo)
 	GetState() (s *State)
 	GetNumPixels() (p uint16)
+	GetType() (string)
 }
 
 type LightInfo struct {
@@ -304,23 +305,26 @@ func SendState(l *Light, last_color colorful.Color) {
 		s.EffectRoutine = nil
 	}
 
-	switch s.Effect {
-	case "colorloop":
-		s.EffectRoutine = &EffectRoutine{make(chan bool), false}
-		go HsvLoop(s.EffectRoutine.Signal, l)
-	case "hsvloop":
-		s.EffectRoutine = &EffectRoutine{make(chan bool), false}
-		go HsvLoop(s.EffectRoutine.Signal, l)
-	case "hclloop":
-		s.EffectRoutine = &EffectRoutine{make(chan bool), false}
-		go HclLoop(s.EffectRoutine.Signal, l)
-	case "rainbow":
-		s.EffectRoutine = &EffectRoutine{make(chan bool), false}
-		go RainbowLoop(s.EffectRoutine.Signal, l)
-	default:
-		s.EffectRoutine = &EffectRoutine{make(chan bool), false}
-		go BlendColor(s.EffectRoutine, l, last_color)
-		//(*l).SetColor(s.GetColor())
+	if (*l).GetType() != "zigbee" {
+		switch s.Effect {
+		case "colorloop":
+			s.EffectRoutine = &EffectRoutine{make(chan bool), false}
+			go HsvLoop(s.EffectRoutine.Signal, l)
+		case "hsvloop":
+			s.EffectRoutine = &EffectRoutine{make(chan bool), false}
+			go HsvLoop(s.EffectRoutine.Signal, l)
+		case "hclloop":
+			s.EffectRoutine = &EffectRoutine{make(chan bool), false}
+			go HclLoop(s.EffectRoutine.Signal, l)
+		case "rainbow":
+			s.EffectRoutine = &EffectRoutine{make(chan bool), false}
+			go RainbowLoop(s.EffectRoutine.Signal, l)
+		default:
+			s.EffectRoutine = &EffectRoutine{make(chan bool), false}
+			go BlendColor(s.EffectRoutine, l, last_color)
+		}
+	} else {
+		(*l).SetColor(s.GetColor())
 	}
 }
 

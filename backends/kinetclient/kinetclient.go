@@ -77,6 +77,10 @@ func (k KinetLight) GetState() *chromaticity.State {
 	return k.LightState
 }
 
+func (k KinetLight) GetType() string {
+	return "kinet"
+}
+
 func (b Backend) GetType() string {
 	return "kinet"
 }

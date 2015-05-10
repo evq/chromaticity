@@ -61,6 +61,10 @@ func (g Group) GetNumPixels() uint16 {
 	return uint16(len(g.LightIDs))
 }
 
+func (g Group) GetType() string {
+	return "group"
+}
+
 func (l LightResource) listGroups(request *restful.Request, response *restful.Response) {
 	response.WriteEntity(l.Groups)
 }
