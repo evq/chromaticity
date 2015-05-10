@@ -16,15 +16,15 @@ type State struct {
 
 type ColorState struct {
 	Alert          string    `json:"alert"`
-	Bri            uint8     `json:"bri"`
-	BriInc         int16     `json:"bri_inc,omitempty"`
-	Ct             uint16    `json:"ct"`
+	Bri            uint8     `json:"bri"` // Brightness
+	BriInc         int16     `json:"bri_inc,omitempty"` //Brightness Increment
+	Ct             uint16    `json:"ct"` // Color Temperature
 	Effect         string    `json:"effect"`
 	EffectSpread   float64   `json:"effectspread,omitempty"`
 	Hue            uint16    `json:"hue"`
 	On             bool      `json:"on"`
 	TransitionTime uint16    `json:"transitiontime,omitempty"`
-	Sat            uint8     `json:"sat"`
+	Sat            uint8     `json:"sat"` // Saturation
 	Xy             []float64 `json:"xy"`
 	Colormode      string    `json:"colormode"`
 	*EffectRoutine

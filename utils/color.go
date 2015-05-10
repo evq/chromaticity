@@ -59,6 +59,8 @@ func WhiteCmpt(c colorful.Color, w colorful.Color) float64 {
 	return (1.0 - diff) * (1.0 - math.Pow(sat, 5))
 }
 
+// Converts RGB to RGBW
+// TODO: May want to implement different algorithms
 func RgbToRgbw(c colorful.Color, mir uint16) (rgb colorful.Color, w float64) {
 	white := FromMirads(mir, 255)
 	Clamp(&white)
@@ -107,10 +109,12 @@ func Linearize(v float64, gamma float64) float64 {
 	return math.Pow(v, gamma)
 }
 
+// Converts Colorful values into a fraction of the maximum
+// color value
 func Clamp(c *colorful.Color) {
 	max := math.Max(c.R, math.Max(c.G, c.B))
 	if max > 1.0 {
-		c.R /= max
+		c.R /= max // R = c.R / max
 		c.G /= max
 		c.B /= max
 	}
@@ -127,6 +131,7 @@ func Clamp(c *colorful.Color) {
 	return
 }
 
+// Upscales values if needed
 func Maximize(c * colorful.Color) {
 	max := math.Max(c.R, math.Max(c.G, c.B))
 	if max < 1.0 {
