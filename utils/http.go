@@ -9,11 +9,11 @@ import (
 func GetHostPort(req *http.Request) (string, string) {
 	var IP string
 	var Port string
-	if !strings.Contains(req.Host,":") {
+	if !strings.Contains(req.Host, ":") {
 		IP = req.Host
 		Port = "80"
 	} else {
-		split := strings.Split(req.Host,":")
+		split := strings.Split(req.Host, ":")
 		IP = split[0]
 		Port = split[1]
 	}
@@ -21,7 +21,7 @@ func GetHostPort(req *http.Request) (string, string) {
 	return ipaddr.String(), Port
 }
 
-// Returns a "dummy" gateway ( 
+// Returns a "dummy" gateway (
 func DummyGateway(host string) string {
 	ipseg := strings.Split(host, ".")
 	ipseg[3] = "1"

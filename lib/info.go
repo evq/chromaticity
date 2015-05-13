@@ -7,21 +7,21 @@ import (
 )
 
 type ConfigInfo struct {
-	Name           string               `json:"name"`
-	Mac            string               `json:"mac"`
-	Dhcp           bool                 `json:"dhcp"`
-	Ipaddress      string               `json:"ipaddress"`
-	Netmask        string               `json:"netmask"`
-	Gateway        string               `json:"gateway"`
-	Proxyaddress   string               `json:"proxyaddress"`
-	Proxyport      int                  `json:"proxyport"`
-	UTC            string               `json:"UTC"`
-	Whitelist      map[string]Developer `json:"whitelist"`
-	Swversion      string               `json:"swversion"`
+	Name         string               `json:"name"`
+	Mac          string               `json:"mac"`
+	Dhcp         bool                 `json:"dhcp"`
+	Ipaddress    string               `json:"ipaddress"`
+	Netmask      string               `json:"netmask"`
+	Gateway      string               `json:"gateway"`
+	Proxyaddress string               `json:"proxyaddress"`
+	Proxyport    int                  `json:"proxyport"`
+	UTC          string               `json:"UTC"`
+	Whitelist    map[string]Developer `json:"whitelist"`
+	Swversion    string               `json:"swversion"`
 	//Apiversion     string               `json:"apiversion"` // 1.2.1 +
-	Swupdate       UpdateInfo           `json:"swupdate"`
-	Linkbutton     bool                 `json:"linkbutton"`
-	Portalservices bool                 `json:"portalservices"`
+	Swupdate       UpdateInfo `json:"swupdate"`
+	Linkbutton     bool       `json:"linkbutton"`
+	Portalservices bool       `json:"portalservices"`
 }
 
 type Developer struct {
@@ -32,7 +32,7 @@ type Developer struct {
 
 type UserInfo struct {
 	DeviceType string `json:"devicetype"`
-	UserName string `json:"username"`
+	UserName   string `json:"username"`
 }
 
 type UpdateInfo struct {
@@ -83,7 +83,7 @@ func (l LightResource) _RegisterConfigApi(ws *restful.WebService) {
 		Doc("list all config info").
 		Operation("listConfig"))
 
-		ws.Route(ws.POST("/").To(l.userCreate).
+	ws.Route(ws.POST("/").To(l.userCreate).
 		Doc("create new api user").
 		Operation("userCreate"))
 }

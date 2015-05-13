@@ -48,7 +48,7 @@ type Light interface {
 	GetInfo() (i *LightInfo)
 	GetState() (s *State)
 	GetNumPixels() (p uint16)
-	GetType() (string)
+	GetType() string
 }
 
 type LightInfo struct {
@@ -69,11 +69,11 @@ type LuxLight struct {
 // Omit color fields for white only lights
 type LuxState struct {
 	*State
-	Ct             bool    `json:"ct,omitempty"`
-	Hue            bool    `json:"hue,omitempty"`
-	Sat            bool    `json:"sat,omitempty"`
-	Xy             bool    `json:"xy,omitempty"`
-	Colormode      bool    `json:"colormode,omitempty"`
+	Ct        bool `json:"ct,omitempty"`
+	Hue       bool `json:"hue,omitempty"`
+	Sat       bool `json:"sat,omitempty"`
+	Xy        bool `json:"xy,omitempty"`
+	Colormode bool `json:"colormode,omitempty"`
 }
 
 func NewState() *State {
@@ -155,7 +155,6 @@ func WrapLights(l map[string]*Light) map[string]interface{} {
 	return lights
 }
 
-
 func WrapLight(l *Light) interface{} {
 	info := (*l).GetInfo()
 	if (*info).Type == "Dimmable light" {
@@ -163,7 +162,7 @@ func WrapLight(l *Light) interface{} {
 		luxs.State = (*l).GetState()
 		lux := LuxLight{}
 		lux.State = &luxs
-	  lux.LightInfo = info
+		lux.LightInfo = info
 		return lux
 	} else {
 		return l

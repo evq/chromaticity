@@ -1,17 +1,17 @@
 package api
 
 import (
+	"fmt"
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful/swagger"
 	"github.com/evq/chromaticity/backends"
-	"github.com/evq/chromaticity/utils"
 	chromaticity "github.com/evq/chromaticity/lib"
+	"github.com/evq/chromaticity/utils"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"text/template"
-	"fmt"
 )
 
 type Service struct {
@@ -46,7 +46,6 @@ func (a *AuthHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	//log.Printf(req.Header["Connection"][0])
 
 	//req.Header["Connection"] = []string{"keep-alive"}
-
 
 	url := req.URL.Path
 	log.Printf("%s %s\n", req.Method, url)
@@ -120,7 +119,6 @@ func StartServer(port string) {
 	http.HandleFunc("/description.xml", SsdpDescription)
 
 	http.Handle("/api/", &AuthHandler{wsContainer})
-
 
 	log.Printf("[chromaticity] start listening on localhost:" + port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))

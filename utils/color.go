@@ -78,9 +78,9 @@ func RgbToRgbw(c colorful.Color, mir uint16) (rgb colorful.Color, w float64) {
 
 	max := math.Max(rgb.R, math.Max(rgb.G, rgb.B))
 
-	rgb.R += (1.0-max)*c.R
-	rgb.G += (1.0-max)*c.G
-	rgb.B += (1.0-max)*c.B
+	rgb.R += (1.0 - max) * c.R
+	rgb.G += (1.0 - max) * c.G
+	rgb.B += (1.0 - max) * c.B
 
 	rgb.R *= v
 	rgb.G *= v
@@ -127,7 +127,7 @@ func Clamp(c *colorful.Color) {
 	return
 }
 
-func Maximize(c * colorful.Color) {
+func Maximize(c *colorful.Color) {
 	max := math.Max(c.R, math.Max(c.G, c.B))
 	if max < 1.0 {
 		c.R /= max
@@ -148,7 +148,6 @@ func Hsv2Rainbow(h float64, s float64, v float64) colorful.Color {
 	third := offset / 3.0
 	twothird := offset * 2.0 / 3.0
 
-
 	r := 0.0
 	g := 0.0
 	b := 0.0
@@ -160,7 +159,7 @@ func Hsv2Rainbow(h float64, s float64, v float64) colorful.Color {
 				b = 0
 			} else {
 				// Y1
-				r = 0.666 // 171
+				r = 0.666         // 171
 				g = 0.333 + third //85
 				b = 0
 				// Y2
@@ -213,5 +212,5 @@ func Hsv2Rainbow(h float64, s float64, v float64) colorful.Color {
 	g *= v
 	b *= v
 
-	return colorful.Color{r,g,b}
+	return colorful.Color{r, g, b}
 }

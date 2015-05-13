@@ -178,7 +178,7 @@ func (b *Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
 				light.Type = "Extended color light"
 			}
 			light.PointSymbol = make(map[string]string, 8)
-			for k:= 1; k < 9; k++ {
+			for k := 1; k < 9; k++ {
 				light.PointSymbol[strconv.Itoa(k)] = "none"
 			}
 			light.Name = server.Name + " Chan:" + strconv.Itoa(int(light.Chan.ID))

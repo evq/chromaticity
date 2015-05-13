@@ -186,7 +186,7 @@ func LightsFrom(ps *kinet.PowerSupply, nextColor []*colorful.Color) []chromatici
 		k.SwVersion = ps.FWVersion
 
 		k.PointSymbol = make(map[string]string, 8)
-		for l:= 1; l < 9; l++ {
+		for l := 1; l < 9; l++ {
 			k.PointSymbol[strconv.Itoa(l)] = "none"
 		}
 
