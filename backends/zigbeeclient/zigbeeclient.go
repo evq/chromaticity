@@ -47,47 +47,49 @@ func (b *Backend) Sync() {
 }
 
 func (b *Backend) _Sync() {
-	b.Gateway.Reconnect()
-	for {
-		for i := range b.Devices {
-			dev := b.Devices[i]
-			state := dev.LightState
-			if !reflect.DeepEqual(dev.NextColor, dev.CurrentColor) {
-				if !state.On {
-					b.Gateway.MoveToLightLevelWOnOff(dev.ZigbeeDevice, ENDPOINT, 0x00, state.TransitionTime)
-				} else {
-					b.Gateway.MoveToLightLevelWOnOff(dev.ZigbeeDevice, ENDPOINT, state.Bri, state.TransitionTime)
-					b.Gateway.Send()
-					switch state.Colormode {
-						case "xy":
-							b.Gateway.MoveToXY(dev.ZigbeeDevice, ENDPOINT, uint16(state.Xy[0] * 65535), uint16(state.Xy[1] * 65535), state.TransitionTime)
-						case "hs":
-							b.Gateway.MoveToHueSat(dev.ZigbeeDevice, ENDPOINT, uint8(state.Hue/257), dev.LightState.Sat, dev.LightState.TransitionTime)
-						case "ct":
-							b.Gateway.MoveToColorTemp(dev.ZigbeeDevice, ENDPOINT, dev.LightState.Ct, dev.LightState.TransitionTime)
+	if b.Gateway != nil {
+		b.Gateway.Reconnect()
+		for {
+			for i := range b.Devices {
+				dev := b.Devices[i]
+				state := dev.LightState
+				if !reflect.DeepEqual(dev.NextColor, dev.CurrentColor) {
+					if !state.On {
+						b.Gateway.MoveToLightLevelWOnOff(dev.ZigbeeDevice, ENDPOINT, 0x00, state.TransitionTime)
+					} else {
+						b.Gateway.MoveToLightLevelWOnOff(dev.ZigbeeDevice, ENDPOINT, state.Bri, state.TransitionTime)
+						b.Gateway.Send()
+						switch state.Colormode {
+							case "xy":
+								b.Gateway.MoveToXY(dev.ZigbeeDevice, ENDPOINT, uint16(state.Xy[0] * 65535), uint16(state.Xy[1] * 65535), state.TransitionTime)
+							case "hs":
+								b.Gateway.MoveToHueSat(dev.ZigbeeDevice, ENDPOINT, uint8(state.Hue/257), dev.LightState.Sat, dev.LightState.TransitionTime)
+							case "ct":
+								b.Gateway.MoveToColorTemp(dev.ZigbeeDevice, ENDPOINT, dev.LightState.Ct, dev.LightState.TransitionTime)
+						}
 					}
-				}
-				b.Gateway.Send()
-				b.Devices[i].CurrentColor = dev.NextColor
+					b.Gateway.Send()
+					b.Devices[i].CurrentColor = dev.NextColor
 
-				if state.Effect != "none" {
-						b.Gateway.Loop(dev.ZigbeeDevice, ENDPOINT, state.Hue, state.TransitionTime)
+					if state.Effect != "none" {
+							b.Gateway.Loop(dev.ZigbeeDevice, ENDPOINT, state.Hue, state.TransitionTime)
+					}
+					b.Gateway.Send()
 				}
-				b.Gateway.Send()
-			}
-			if dev.Effect != state.Effect || dev.TransitionTime != state.TransitionTime {
-				if state.Effect != "none" {
-						b.Gateway.Loop(dev.ZigbeeDevice, ENDPOINT, state.Hue, state.TransitionTime)
-				} else {
-						b.Gateway.StopLoop(dev.ZigbeeDevice, ENDPOINT, state.Hue, state.TransitionTime)
+				if dev.Effect != state.Effect || dev.TransitionTime != state.TransitionTime {
+					if state.Effect != "none" {
+							b.Gateway.Loop(dev.ZigbeeDevice, ENDPOINT, state.Hue, state.TransitionTime)
+					} else {
+							b.Gateway.StopLoop(dev.ZigbeeDevice, ENDPOINT, state.Hue, state.TransitionTime)
+					}
+					b.Gateway.Send()
+					b.Devices[i].Effect = dev.LightState.Effect
+					b.Devices[i].TransitionTime = dev.LightState.TransitionTime
 				}
-				b.Gateway.Send()
-				b.Devices[i].Effect = dev.LightState.Effect
-				b.Devices[i].TransitionTime = dev.LightState.TransitionTime
 			}
+			//time.Sleep(time.Duration(1000.0/float64(server.RefreshRate)) * time.Millisecond)
+			time.Sleep(time.Duration(100) * time.Millisecond)
 		}
-		//time.Sleep(time.Duration(1000.0/float64(server.RefreshRate)) * time.Millisecond)
-		time.Sleep(time.Duration(100) * time.Millisecond)
 	}
 }
 

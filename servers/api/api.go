@@ -1,18 +1,17 @@
 package api
 
 import (
-	"encoding/json"
-	"fmt"
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful/swagger"
 	"github.com/evq/chromaticity/backends"
+	"github.com/evq/chromaticity/utils"
 	chromaticity "github.com/evq/chromaticity/lib"
 	"log"
 	"net/http"
 	"os"
 	"strings"
-	//"io/ioutil"
 	"text/template"
+	"fmt"
 )
 
 type Service struct {
@@ -24,17 +23,6 @@ type AuthHandler struct {
 	chainedHandler http.Handler
 }
 
-type UserInfo struct {
-	DeviceType string `json:"devicetype"`
-	UserName
-}
-
-type UserName struct {
-	UN string `json:"username"`
-}
-
-// Whitelist goes here
-
 func SsdpDescription(resp http.ResponseWriter, req *http.Request) {
 	t := template.New("description.xml")
 	var err error
@@ -43,36 +31,22 @@ func SsdpDescription(resp http.ResponseWriter, req *http.Request) {
 		log.Println(err)
 	}
 	s := Service{}
-	if !strings.Contains(req.Host,":") {
-		s.IP = req.Host
-		s.Port = "80"
-	} else {
-		split := strings.Split(req.Host,":")
-		s.IP = split[0]
-		s.Port = split[1]
-	}
+	s.IP, s.Port = utils.GetHostPort(req)
 	t.Execute(resp, s)
 }
 
-func UserCreate(resp http.ResponseWriter, req *http.Request) {
-	decoder := json.NewDecoder(req.Body)
-	var u UserInfo
-	err := decoder.Decode(&u)
-	if err != nil {
-		// FIXME
-		fmt.Fprintf(resp, "ERROR")
-	}
-	jsonUN, _ := json.Marshal(u.UserName)
-	fmt.Fprintf(resp, `[{"success": %s}]`, string(jsonUN))
-}
-
 func (a *AuthHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
-	if req.Header.Get("Content-Type") == "" {
-		req.Header.Set("Content-Type", "application/json")
-	}
+	// Always assume we are getting json
+	req.Header.Set("Content-Type", "application/json")
+
 	resp.Header().Set("Access-Control-Allow-Origin", "*")
 	resp.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	resp.Header().Set("Access-Control-Allow-Methods", "HEAD,GET,PUT,DELETE,OPTIONS")
+
+	//log.Printf(req.Header["Connection"][0])
+
+	//req.Header["Connection"] = []string{"keep-alive"}
+
 
 	url := req.URL.Path
 	log.Printf("%s %s\n", req.Method, url)
@@ -81,12 +55,18 @@ func (a *AuthHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if url == "/api/" {
-		UserCreate(resp, req)
+	if len(url) < len("/api") {
 		return
 	}
 
-	url = url[len("/api/"):]
+	url = url[len("/api"):]
+	if url == "" || url == "/" {
+		req.URL.Path = "/"
+		a.chainedHandler.ServeHTTP(resp, req)
+		return
+	}
+	url = url[1:]
+
 	i := strings.Index(url, "/")
 
 	if i == -1 {
@@ -99,6 +79,7 @@ func (a *AuthHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 
 	// Strip token for downstream handler
 	req.URL.Path = url[len(token):]
+	fmt.Println(req.URL.Path)
 
 	// Do token matching here :)
 
@@ -108,6 +89,7 @@ func (a *AuthHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 func StartServer(port string) {
 	l := &chromaticity.LightResource{}
 	l.ConfigInfo = chromaticity.NewConfigInfo()
+	l.Schedules = map[string]string{}
 	backends.Load(l)
 
 	wsContainer := restful.NewContainer()
@@ -137,8 +119,8 @@ func StartServer(port string) {
 
 	http.HandleFunc("/description.xml", SsdpDescription)
 
-	http.HandleFunc("/api", UserCreate)
 	http.Handle("/api/", &AuthHandler{wsContainer})
+
 
 	log.Printf("[chromaticity] start listening on localhost:" + port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))

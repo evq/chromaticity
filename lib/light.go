@@ -38,6 +38,7 @@ type EffectRoutine struct {
 type LightResource struct {
 	Lights      map[string]*Light `json:"lights"`
 	Groups      map[string]Group  `json:"groups"`
+	Schedules   map[string]string `json:"schedules"`
 	*ConfigInfo `json:"config"`
 }
 
