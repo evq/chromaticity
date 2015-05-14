@@ -180,7 +180,7 @@ func LightsFrom(ps *kinet.PowerSupply, nextColor []*colorful.Color) []chromatici
 		k.LightState.SetColor(c)
 
 		k.LightInfo = &chromaticity.LightInfo{}
-		k.Type = "Extended color light"
+		k.Type = chromaticity.Ex_Color_Light
 		k.Name = ps.Name + " Serial:" + k.Fixture.Serial // default, make this changable
 		k.ModelId = "ColorKinetics " + ps.Type
 		k.SwVersion = ps.FWVersion

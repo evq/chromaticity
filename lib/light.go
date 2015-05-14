@@ -51,6 +51,12 @@ type Light interface {
 	GetType() string
 }
 
+// Light Types
+const (
+	Ex_Color_Light = "Extended color light"
+	Dimmable_Light = "Dimmable light"
+)
+
 type LightInfo struct {
 	// Api def limits these strings to certain length, FIXME if doesn't work
 	Type      string `json:"type,omitempty"`

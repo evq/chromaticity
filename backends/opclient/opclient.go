@@ -173,9 +173,9 @@ func (b *Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
 			light.Chan.CurrentColors = make([]colorful.Color, light.Chan.NumPixels)
 			light.Chan.NextColors = make([]colorful.Color, light.Chan.NumPixels)
 			if server.Type == "W" {
-				light.Type = "Dimmable light"
+				light.Type = chromaticity.Dimmable_Light
 			} else {
-				light.Type = "Extended color light"
+				light.Type = chromaticity.Ex_Color_Light
 			}
 			light.PointSymbol = make(map[string]string, 8)
 			for k := 1; k < 9; k++ {
