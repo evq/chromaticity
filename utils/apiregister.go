@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/emicklei/go-restful"
+	"github.com/evq/go-restful"
 )
 
 // Helper method to allow registering apis on the same endpoint

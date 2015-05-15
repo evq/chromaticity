@@ -1,5 +1,9 @@
 all: static/static.go
 
+xc:
+	docker run -it -v $(shell pwd):/build -v ${GOPATH}:/gopath slim-wink-buildroot
+	mv build chromaticity
+
 swagger-ui:
 	git submodule init
 	git submodule update

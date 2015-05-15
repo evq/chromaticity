@@ -2,7 +2,7 @@ package backends
 
 import (
 	"encoding/json"
-	"github.com/emicklei/go-restful"
+	"github.com/evq/go-restful"
 	"github.com/evq/chromaticity/backends/kinetclient"
 	//"github.com/evq/chromaticity/backends/limitlessclient"
 	"github.com/evq/chromaticity/backends/opclient"

@@ -2,7 +2,7 @@ package chromaticity
 
 import (
 	"fmt"
-	"github.com/emicklei/go-restful"
+	"github.com/evq/go-restful"
 	"github.com/evq/chromaticity/utils"
 	"github.com/lucasb-eyer/go-colorful"
 	"net/http"

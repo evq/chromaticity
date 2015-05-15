@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/emicklei/go-restful"
-	"github.com/emicklei/go-restful/swagger"
+	"github.com/evq/go-restful"
+	"github.com/evq/go-restful/swagger"
 	"github.com/evq/chromaticity/backends"
 	"github.com/evq/chromaticity/static"
 	chromaticity "github.com/evq/chromaticity/lib"
 	"github.com/evq/chromaticity/utils"
 	"net/http"
-	urllib "net/url"
 	"mime"
 	"strings"
 	"text/template"
@@ -56,64 +55,34 @@ func SsdpDescription(resp http.ResponseWriter, req *http.Request) {
 	s.IP, s.Port = utils.GetHostPort(req)
 	t.Execute(resp, s)
 }
-func (a *AuthHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
-	// Always assume we are getting json
-	req.Header.Set("Content-Type", "application/json")
+
+func ReqRewriter(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+	contenttype := req.Request.Header.Get("Content-Type")
+	if contenttype != "application/json" {
+		log.Info(fmt.Sprintf(
+			"[chromaticity/servers/api] Rewriting Content-Type: %s -> application/json",
+			contenttype,
+		))
+		// Some hue apps don't set content type correctly AFAIK
+		req.Request.Header.Set("Content-Type", "application/json")
+	}
 
 	resp.Header().Set("Access-Control-Allow-Origin", "*")
 	resp.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	resp.Header().Set("Access-Control-Allow-Methods", "HEAD,GET,PUT,DELETE,OPTIONS")
 
-	url := req.URL.Path
-
-	if req.Method == "OPTIONS" {
-		return
-	}
-
-	if len(url) < len("/api") {
-		return
-	}
-
-	url = url[len("/api"):]
-	if url == "" || url == "/" {
-		req.URL.Path = "/"
-		a.chainedHandler.ServeHTTP(resp, req)
-		return
-	}
-	url = url[1:]
-
-	i := strings.Index(url, "/")
-
-	if i == -1 {
-		req.URL.Path = "/config/all"
-		a.chainedHandler.ServeHTTP(resp, req)
-		return
-	}
-
-	token := url[:i]
-
-	// Strip token for downstream handler
-	req.URL.Path = url[len(token):]
-
-	req.URL.User = urllib.User(token)
-	// Do token matching here :)
-
-	a.chainedHandler.ServeHTTP(resp, req)
+	chain.ProcessFilter(req, resp)
 }
 
 func ReqLogger(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
 	chain.ProcessFilter(req, resp)
 
-	username := ""
-	user := req.Request.URL.User
-	if user != nil {
-		username = user.Username()
-	}
+	api_key := req.PathParameter("api_key")
 
 	log.Info(fmt.Sprintf(
 		"[chromaticity/servers/api] %s %s %s %s %s %d",
 		strings.Split(req.Request.RemoteAddr, ":")[0],
-		username,
+		api_key,
 		req.Request.Method,
 		req.Request.URL.RequestURI(),
 		req.Request.Header.Get("Content-Type"),
@@ -142,6 +111,7 @@ func StartServer(port string) {
 
 	wsContainer := restful.NewContainer()
 	wsContainer.Filter(ReqLogger)
+	wsContainer.Filter(ReqRewriter)
 
 	// Register apis
 	l.RegisterConfigApi(wsContainer)
@@ -168,7 +138,7 @@ func StartServer(port string) {
 
 	http.HandleFunc("/description.xml", SsdpDescription)
 
-	//http.Handle("/api/", &AuthHandler{wsContainer})
+	http.Handle("/api", wsContainer)
 	http.Handle("/api/", wsContainer)
 
 	log.Info("[chromaticity/servers/api] start listening on localhost:" + port)
