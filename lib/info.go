@@ -75,24 +75,27 @@ func (l LightResource) userCreate(request *restful.Request, response *restful.Re
 }
 
 func (l LightResource) _RegisterConfigApi(ws *restful.WebService) {
-	ws.Route(ws.GET("/config/all").To(l.listInfo).
+	ws.Route(ws.GET("{api_key}/config/all").To(l.listInfo).
 		Doc("list all info").
+		Param(ws.PathParameter("api_key", "api key").DataType("string")).
 		Operation("listInfo"))
 
-	ws.Route(ws.GET("/config").To(l.listConfig).
+	ws.Route(ws.GET("{api_key}/config/").To(l.listConfig).
 		Doc("list all config info").
+		Param(ws.PathParameter("api_key", "api key").DataType("string")).
 		Operation("listConfig"))
 
 	ws.Route(ws.POST("/").To(l.userCreate).
 		Doc("create new api user").
-		Operation("userCreate"))
+		Operation("userCreate").
+		Reads(UserInfo{}))
 }
 
 func (l LightResource) RegisterConfigApi(container *restful.Container) {
 	utils.RegisterApis(
 		container,
-		"/",
-		"Config api",
+		"/api",
+		"Manage Configuration",
 		l._RegisterConfigApi,
 	)
 }

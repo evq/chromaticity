@@ -38,7 +38,7 @@ func RegisterDiscoveryApi(container *restful.Container, l *chromaticity.LightRes
 	d := DiscoverResource{l}
 	utils.RegisterApis(
 		container,
-		"/lights",
+		"/api/{api_key}/lights",
 		"Manage Lights",
 		d._RegisterDiscoveryApi,
 	)
@@ -47,6 +47,7 @@ func RegisterDiscoveryApi(container *restful.Container, l *chromaticity.LightRes
 func (d DiscoverResource) _RegisterDiscoveryApi(ws *restful.WebService) {
 	ws.Route(ws.POST("/").To(d.searchLights).
 		Doc("search for lights").
+		Param(ws.PathParameter("api_key", "api key").DataType("string")).
 		Operation("searchLights"))
 }
 

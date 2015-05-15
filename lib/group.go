@@ -130,7 +130,7 @@ func (l LightResource) updateGroupState(request *restful.Request, response *rest
 func (l LightResource) RegisterGroupsApi(container *restful.Container) {
 	utils.RegisterApis(
 		container,
-		"/groups",
+		"/api/{api_key}/groups",
 		"Manage Groups",
 		l._RegisterGroupsApi,
 	)
@@ -139,11 +139,13 @@ func (l LightResource) RegisterGroupsApi(container *restful.Container) {
 func (l LightResource) _RegisterGroupsApi(ws *restful.WebService) {
 	ws.Route(ws.GET("/").To(l.listGroups).
 		Doc("list all groups").
+		Param(ws.PathParameter("api_key", "api key").DataType("string")).
 		Operation("listGroups"))
 
 	ws.Route(ws.PUT("/{group-id}/action").To(l.updateGroupState).
 		Doc("modify a groups's state").
 		Operation("updateGroupState").
+		Param(ws.PathParameter("api_key", "api key").DataType("string")).
 		Param(ws.PathParameter("group-id", "identifier of the group").DataType("int")).
 		Reads(ColorState{}))
 }

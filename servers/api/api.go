@@ -29,10 +29,11 @@ type AuthHandler struct {
 type AssetHandler struct { }
 
 func (a *AssetHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+	log.Debug(req.URL.Path)
 	if strings.HasSuffix(req.URL.Path, "/") {
 		req.URL.Path = req.URL.Path + "index.html"
 	}
-	data, err := static.Asset("static/" + req.URL.Path)
+	data, err := static.Asset("static/" + req.URL.Path[1:])
 	if err == nil {
 		split := strings.Split(req.URL.Path, ".")
 		ext := "." + split[len(split)-1]
@@ -154,20 +155,21 @@ func StartServer(port string) {
 	// Uncomment to add some swagger
 	config := swagger.Config{
 		WebServices:     wsContainer.RegisteredWebServices(),
-		WebServicesUrl:  "http://localhost/api/swagger",
+		WebServicesUrl:  "/",
 		ApiPath:         "/swagger/apidocs.json",
 		SwaggerPath:     "/swagger/apidocs/",
-		StaticHandler:   http.StripPrefix("/swagger/", &AssetHandler{}),
 	}
 
 	//Container just for swagger
 	swContainer := restful.NewContainer()
 	swagger.RegisterSwaggerService(config, swContainer)
 	http.Handle("/swagger/", swContainer)
+	http.Handle("/apidocs/", &AssetHandler{})
 
 	http.HandleFunc("/description.xml", SsdpDescription)
 
-	http.Handle("/api/", &AuthHandler{wsContainer})
+	//http.Handle("/api/", &AuthHandler{wsContainer})
+	http.Handle("/api/", wsContainer)
 
 	log.Info("[chromaticity/servers/api] start listening on localhost:" + port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))

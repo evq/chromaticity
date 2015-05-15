@@ -6,7 +6,9 @@ swagger-ui:
 
 static/apidocs: swagger-ui
 	cp -R swagger-ui/dist static/apidocs
-	sed -i -e 's/http:\/\/petstore\.swagger\.wordnik\.com\/v2\/swagger\.json/\.\.\/apidocs\.json/' static/apidocs/index.html
+	rm static/apidocs/index.html
+	cd static/apidocs && cp ../index.html .
+	cd static/apidocs/lib && cp ../../arrive.min.js .
 
 static/static.go: static/apidocs
 	$(eval STATIC_DIRS:=$(shell find static -type d | tr \\n ' '))

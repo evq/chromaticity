@@ -20,7 +20,6 @@ func RegisterApis(container *restful.Container, rootPath string, docString strin
 	if newService {
 		ws.Path(rootPath).
 			Doc(docString).
-			//Consumes(restful.MIME_JSON).
 			Consumes("*/*").
 			Produces(restful.MIME_JSON) // you can specify this per route as well
 	}

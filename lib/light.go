@@ -130,7 +130,7 @@ func (l LightResource) updateLightState(request *restful.Request, response *rest
 func (l LightResource) RegisterLightsApi(container *restful.Container) {
 	utils.RegisterApis(
 		container,
-		"/lights",
+		"/api/{api_key}/lights",
 		"Manage Lights",
 		l._RegisterLightsApi,
 	)
@@ -139,16 +139,19 @@ func (l LightResource) RegisterLightsApi(container *restful.Container) {
 func (l LightResource) _RegisterLightsApi(ws *restful.WebService) {
 	ws.Route(ws.GET("/").To(l.listLights).
 		Doc("list all lights").
+		Param(ws.PathParameter("api_key", "api key").DataType("string")).
 		Operation("listLights"))
 
 	ws.Route(ws.GET("/{light-id}").To(l.findLight).
 		Doc("get a light").
 		Operation("findLight").
+		Param(ws.PathParameter("api_key", "api key").DataType("string")).
 		Param(ws.PathParameter("light-id", "identifier of the light").DataType("int")))
 
 	ws.Route(ws.PUT("/{light-id}/state").To(l.updateLightState).
 		Doc("modify a light's state").
 		Operation("updateLightState").
+		Param(ws.PathParameter("api_key", "api key").DataType("string")).
 		Param(ws.PathParameter("light-id", "identifier of the light").DataType("int")).
 		Reads(ColorState{}))
 }
