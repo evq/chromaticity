@@ -7,11 +7,12 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful/swagger"
 	"github.com/evq/chromaticity/backends"
+	"github.com/evq/chromaticity/static"
 	chromaticity "github.com/evq/chromaticity/lib"
 	"github.com/evq/chromaticity/utils"
 	"net/http"
 	urllib "net/url"
-	"os"
+	"mime"
 	"strings"
 	"text/template"
 )
@@ -25,10 +26,28 @@ type AuthHandler struct {
 	chainedHandler http.Handler
 }
 
+type AssetHandler struct { }
+
+func (a *AssetHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+	if strings.HasSuffix(req.URL.Path, "/") {
+		req.URL.Path = req.URL.Path + "index.html"
+	}
+	data, err := static.Asset("static/" + req.URL.Path)
+	if err == nil {
+		split := strings.Split(req.URL.Path, ".")
+		ext := "." + split[len(split)-1]
+		ct := mime.TypeByExtension(ext)
+		resp.Header().Set("Content-Type", ct)
+		resp.Write(data)
+	} else {
+		http.Error(resp, "File not found", 404)
+	}
+}
+
 func SsdpDescription(resp http.ResponseWriter, req *http.Request) {
 	t := template.New("description.xml")
-	var err error
-	t, err = t.ParseFiles(os.Getenv("GOPATH") + "/src/github.com/evq/chromaticity/servers/ssdp/description.xml")
+	data, err := static.Asset("static/description.xml")
+	t, err = t.Parse(string(data))
 	if err != nil {
 		log.Error(err)
 	}
@@ -138,7 +157,7 @@ func StartServer(port string) {
 		WebServicesUrl:  "http://localhost/api/swagger",
 		ApiPath:         "/swagger/apidocs.json",
 		SwaggerPath:     "/swagger/apidocs/",
-		SwaggerFilePath: os.Getenv("GOPATH") + "/src/github.com/evq/chromaticity/swagger-ui/dist",
+		StaticHandler:   http.StripPrefix("/swagger/", &AssetHandler{}),
 	}
 
 	//Container just for swagger

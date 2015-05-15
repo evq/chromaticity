@@ -2,3 +2,5 @@ chromaticity
 data.json
 Dockerfile
 apron.db
+static/static.go
+static/apidocs
