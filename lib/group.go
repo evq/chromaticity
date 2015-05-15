@@ -9,8 +9,12 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strings"
+	"strconv"
 )
+
+const Luminaire string = "Luminaire"
+const Lightsource string = "Lightsource"
+const LightGroup string = "LightGroup"
 
 type Group struct {
 	GroupInfo
@@ -75,30 +79,45 @@ func (l LightResource) listGroups(request *restful.Request, response *restful.Re
 }
 
 func (l LightResource) createGroup(request *restful.Request, response *restful.Response) {
-	var lights []string
-	dec := json.NewDecoder(strings.NewReader(request.PathParameter("lights")))
+	type privGroupInfo struct {
+		LightIDs []string `json:"lights"`
+		Name     string   `json:"name"`
+	}
+	var pGI privGroupInfo
+	request.ReadEntity(pGI)
 
-	type Message struct {
-		Light string
+	thisLen := strconv.Itoa(len(l.Groups) + 1)
+
+	// Copy state from first bulb
+	var thisState ColorState
+	firstLightState := (*l.Lights[pGI.LightIDs[0]]).GetState().ColorState
+	thisState.Alert = firstLightState.Alert
+	thisState.Bri = firstLightState.Bri
+	thisState.Ct = firstLightState.Ct
+	thisState.Effect = firstLightState.Effect
+	thisState.Hue = firstLightState.Hue
+	thisState.On = firstLightState.On
+	thisState.TransitionTime = firstLightState.TransitionTime
+	thisState.Sat = firstLightState.Sat
+	thisState.Xy = firstLightState.Xy
+
+	theseLights := make([]*Light, len(pGI.LightIDs), len(pGI.LightIDs))
+
+	for x := range pGI.LightIDs {
+		// 	theseLights[strconv.Itoa(x)] = &l.Lights[x]
+		//	Append(theseLights, &l.Lights[x])
+		theseLights[x] = l.Lights[pGI.LightIDs[x]]
 	}
-	for {
-		var m Message
-		if err := dec.Decode(&m); err == io.EOF {
-			break
-		} else if err != nil {
-			log.Fatal(err)
-		}
-		lights = append(lights, m.Light)
-	}
-	thisLen := fmt.Sprintf("%d", len(l.Groups))
-	thisState := &((*l.Lights[lights[0]]).GetState().ColorState)
-	ginfo := GroupInfo{lights,
-		request.PathParameter("name"),
-		request.PathParameter("type")}
+
+	ginfo := GroupInfo{pGI.LightIDs,
+		pGI.Name,
+		Luminaire}
 	l.Groups[thisLen] = Group{
 		ginfo,
-		thisState, // Copies the state from the first light bulb
-		false}
+		&thisState,
+		false,
+		theseLights,
+	}
 
 	// TODO: Add to SQLite db
 	response.WriteEntity(l.Groups[thisLen]) // This might not follow spec!!!
@@ -121,7 +140,7 @@ func (l LightResource) updateGroupState(request *restful.Request, response *rest
 		}
 		group = *NewGroup(
 			&l,
-			GroupInfo{ids, "All Lights"},
+			GroupInfo{ids, "All Lights", "0"},
 			NewState().ColorState,
 			true,
 		)
@@ -186,7 +205,7 @@ func (l LightResource) _RegisterGroupsApi(ws *restful.WebService) {
 		Doc("create a group").
 		Operation("createGroup"))
 
-	ws.Route(ws.POST("{group-id}").To(l.getGroupAttr).
+	ws.Route(ws.GET("{group-id}").To(l.getGroupAttr).
 		Doc("get group attributes").
 		Operation("getGroupAttr").
 		Param(ws.PathParameter("group-id", "identifier of the group").DataType("int")))

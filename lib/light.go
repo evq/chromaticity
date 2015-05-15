@@ -1,12 +1,11 @@
 package chromaticity
 
 import (
-	"github.com/evq/go-restful"
 	"github.com/evq/chromaticity/utils"
+	"github.com/evq/go-restful"
 	"github.com/lucasb-eyer/go-colorful"
 	"net/http"
 	"time"
-	//"fmt"
 )
 
 type State struct {
