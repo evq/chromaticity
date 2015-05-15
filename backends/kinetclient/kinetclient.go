@@ -91,7 +91,7 @@ func AddPSLights(l *chromaticity.LightResource, ps *kinet.PowerSupply) {
 	}
 
 	l.Groups[strconv.Itoa(len(l.Groups)+1)] = chromaticity.Group{
-		chromaticity.GroupInfo{ids, ps.Name},
+		chromaticity.GroupInfo{ids, ps.Name, "LightGroup"},
 		&chromaticity.NewState().ColorState,
 		true,
 	}

@@ -13,7 +13,7 @@ type State struct {
 	ColorState
 }
 
-type ColorState struct {
+type ColorState struct { // Corresponds to "action" in Hue API
 	Alert          string    `json:"alert"`
 	Bri            uint8     `json:"bri"`
 	Ct             uint16    `json:"ct"`
