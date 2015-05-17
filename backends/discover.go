@@ -2,9 +2,10 @@ package backends
 
 import (
 	"encoding/json"
-	"github.com/evq/go-restful"
 	"github.com/evq/chromaticity/backends/kinetclient"
+	"github.com/evq/go-restful"
 	//"github.com/evq/chromaticity/backends/limitlessclient"
+	"github.com/evq/chromaticity/backends/dummylightclient"
 	"github.com/evq/chromaticity/backends/opclient"
 	"github.com/evq/chromaticity/backends/zigbeeclient"
 	chromaticity "github.com/evq/chromaticity/lib"
@@ -18,6 +19,7 @@ var allBackends = []Backend{
 	&opclient.Backend{},
 	//&limitlessclient.Backend{},
 	&zigbeeclient.Backend{},
+	&dummylightclient.Backend{},
 }
 
 type Backend interface {
