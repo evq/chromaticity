@@ -1,0 +1,19 @@
+{
+  "opc": {
+    "servers" : [
+      {
+        "name": "String-Lights",
+        "address": "192.168.2.133:7890",
+        "type": "RGBW",
+        "white": 180,
+        "refreshrate": 120,
+        "channels": [
+          {
+            "id": 0,
+            "numPixels": 50
+          }
+        ]
+      }
+    ]
+  }
+}
