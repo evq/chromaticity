@@ -2,14 +2,16 @@ package backends
 
 import (
 	"encoding/json"
-	"github.com/evq/go-restful"
 	"github.com/evq/chromaticity/backends/kinetclient"
+	"github.com/evq/go-restful"
 	//"github.com/evq/chromaticity/backends/limitlessclient"
+	"github.com/evq/chromaticity/backends/dummylightclient"
 	"github.com/evq/chromaticity/backends/opclient"
 	"github.com/evq/chromaticity/backends/zigbeeclient"
 	chromaticity "github.com/evq/chromaticity/lib"
 	"github.com/evq/chromaticity/utils"
 	"io/ioutil"
+	"log"
 	"os/user"
 )
 
@@ -18,6 +20,7 @@ var allBackends = []Backend{
 	&opclient.Backend{},
 	//&limitlessclient.Backend{},
 	&zigbeeclient.Backend{},
+	&dummylightclient.Backend{},
 }
 
 type Backend interface {
@@ -74,14 +77,25 @@ func Load(l *chromaticity.LightResource) {
 	//if err != nil {
 	//log.Fatal( err )
 	//}
-	data, _ := ioutil.ReadFile(usr.HomeDir + DATA_FILE)
+	data, err := ioutil.ReadFile(usr.HomeDir + DATA_FILE)
+
+	if err != nil {
+		log.Fatal("Error reading file ", usr.HomeDir+DATA_FILE)
+	}
 
 	var exportData map[string]interface{}
-	json.Unmarshal(data, &exportData)
+	err = json.Unmarshal(data, &exportData)
+
+	if err != nil {
+		log.Fatal("Error unmarshalling data", usr.HomeDir+DATA_FILE)
+	}
 
 	for i := range allBackends {
 		backend := allBackends[i]
-		str, _ := json.Marshal(exportData[backend.GetType()])
+		str, err := json.Marshal(exportData[backend.GetType()])
+		if err != nil {
+			log.Println("Error marshalling JSON")
+		}
 		backend.ImportLights(l, str)
 	}
 }
