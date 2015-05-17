@@ -1,12 +1,20 @@
 package chromaticity
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/evq/go-restful"
 	"github.com/evq/chromaticity/utils"
+	"github.com/evq/go-restful"
 	"github.com/lucasb-eyer/go-colorful"
+	"io"
+	"log"
 	"net/http"
+	"strconv"
 )
+
+const Luminaire string = "Luminaire"
+const Lightsource string = "Lightsource"
+const LightGroup string = "LightGroup"
 
 type Group struct {
 	GroupInfo
@@ -17,8 +25,9 @@ type Group struct {
 }
 
 type GroupInfo struct {
-	LightIDs []string `json:"lights"`
-	Name     string   `json:"name"`
+	LightIDs  []string `json:"lights"`
+	Name      string   `json:"name"`
+	GroupType string   `json:"type"`
 }
 
 func NewGroup(l *LightResource, i GroupInfo, s *ColorState, ro bool) *Group {
@@ -69,6 +78,56 @@ func (l LightResource) listGroups(request *restful.Request, response *restful.Re
 	response.WriteEntity(l.Groups)
 }
 
+func (l LightResource) createGroup(request *restful.Request, response *restful.Response) {
+	type privGroupInfo struct {
+		LightIDs []string `json:"lights"`
+		Name     string   `json:"name"`
+	}
+	var pGI privGroupInfo
+	request.ReadEntity(pGI)
+
+	thisLen := strconv.Itoa(len(l.Groups) + 1)
+
+	// Copy state from first bulb
+	var thisState ColorState
+	firstLightState := (*l.Lights[pGI.LightIDs[0]]).GetState().ColorState
+	thisState.Alert = firstLightState.Alert
+	thisState.Bri = firstLightState.Bri
+	thisState.Ct = firstLightState.Ct
+	thisState.Effect = firstLightState.Effect
+	thisState.Hue = firstLightState.Hue
+	thisState.On = firstLightState.On
+	thisState.TransitionTime = firstLightState.TransitionTime
+	thisState.Sat = firstLightState.Sat
+	thisState.Xy = firstLightState.Xy
+
+	theseLights := make([]*Light, len(pGI.LightIDs), len(pGI.LightIDs))
+
+	for x := range pGI.LightIDs {
+		// 	theseLights[strconv.Itoa(x)] = &l.Lights[x]
+		//	Append(theseLights, &l.Lights[x])
+		theseLights[x] = l.Lights[pGI.LightIDs[x]]
+	}
+
+	ginfo := GroupInfo{pGI.LightIDs,
+		pGI.Name,
+		Luminaire}
+	l.Groups[thisLen] = Group{
+		ginfo,
+		&thisState,
+		false,
+		theseLights,
+	}
+
+	// TODO: Add to SQLite db
+	response.WriteEntity(l.Groups[thisLen]) // This might not follow spec!!!
+}
+
+func (l LightResource) getGroupAttr(request *restful.Request, response *restful.Response) {
+	id := request.PathParameter("group-id")
+	response.WriteEntity(l.Groups[id])
+}
+
 func (l LightResource) updateGroupState(request *restful.Request, response *restful.Response) {
 	id := request.PathParameter("group-id")
 	// Special case, hidden group of all lights
@@ -81,7 +140,7 @@ func (l LightResource) updateGroupState(request *restful.Request, response *rest
 		}
 		group = *NewGroup(
 			&l,
-			GroupInfo{ids, "All Lights"},
+			GroupInfo{ids, "All Lights", "0"},
 			NewState().ColorState,
 			true,
 		)
@@ -141,6 +200,15 @@ func (l LightResource) _RegisterGroupsApi(ws *restful.WebService) {
 		Doc("list all groups").
 		Param(ws.PathParameter("api_key", "api key").DataType("string")).
 		Operation("listGroups"))
+
+	ws.Route(ws.POST("/").To(l.createGroup).
+		Doc("create a group").
+		Operation("createGroup"))
+
+	ws.Route(ws.GET("{group-id}").To(l.getGroupAttr).
+		Doc("get group attributes").
+		Operation("getGroupAttr").
+		Param(ws.PathParameter("group-id", "identifier of the group").DataType("int")))
 
 	ws.Route(ws.PUT("/{group-id}/action").To(l.updateGroupState).
 		Doc("modify a groups's state").
