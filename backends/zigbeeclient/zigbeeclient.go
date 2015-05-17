@@ -102,7 +102,7 @@ func (b *Backend) _Sync() {
 								b.Gateway.MoveToColorTemp(dev.ZigbeeDevice, dev.EndpointId, dev.LightState.Ct, dev.LightState.TransitionTime)
 							}
 							b.Gateway.Send()
-							*dev.PrevLightState = *dev.LightState
+							*dev.PrevLightState.ColorState = *dev.LightState.ColorState
 					}
 				}
 			time.Sleep(time.Duration(10) * time.Millisecond)

@@ -85,6 +85,11 @@ func (l LightResource) _RegisterConfigApi(ws *restful.WebService) {
 		Param(ws.PathParameter("api_key", "api key").DataType("string")).
 		Operation("listConfig"))
 
+	ws.Route(ws.GET("{api_key}").To(l.listInfo).
+		Doc("list all info").
+		Param(ws.PathParameter("api_key", "api key").DataType("string")).
+		Operation("listInfo"))
+
 	ws.Route(ws.POST("/").To(l.userCreate).
 		Doc("create new api user").
 		Operation("userCreate").
