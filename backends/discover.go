@@ -2,9 +2,11 @@ package backends
 
 import (
 	"encoding/json"
-	"github.com/emicklei/go-restful"
+	"github.com/evq/go-restful"
 	"github.com/evq/chromaticity/backends/kinetclient"
+	//"github.com/evq/chromaticity/backends/limitlessclient"
 	"github.com/evq/chromaticity/backends/opclient"
+	"github.com/evq/chromaticity/backends/zigbeeclient"
 	chromaticity "github.com/evq/chromaticity/lib"
 	"github.com/evq/chromaticity/utils"
 	"io/ioutil"
@@ -13,7 +15,9 @@ import (
 
 var allBackends = []Backend{
 	kinetclient.Backend{},
-	opclient.Backend{},
+	&opclient.Backend{},
+	//&limitlessclient.Backend{},
+	&zigbeeclient.Backend{},
 }
 
 type Backend interface {
@@ -21,6 +25,7 @@ type Backend interface {
 	ImportLights(l *chromaticity.LightResource, from []byte)
 	DiscoverLights(l *chromaticity.LightResource)
 	GetType() string
+	Sync()
 }
 
 type DiscoverResource struct {
@@ -33,7 +38,7 @@ func RegisterDiscoveryApi(container *restful.Container, l *chromaticity.LightRes
 	d := DiscoverResource{l}
 	utils.RegisterApis(
 		container,
-		"/lights",
+		"/api/{api_key}/lights",
 		"Manage Lights",
 		d._RegisterDiscoveryApi,
 	)
@@ -42,11 +47,18 @@ func RegisterDiscoveryApi(container *restful.Container, l *chromaticity.LightRes
 func (d DiscoverResource) _RegisterDiscoveryApi(ws *restful.WebService) {
 	ws.Route(ws.POST("/").To(d.searchLights).
 		Doc("search for lights").
+		Param(ws.PathParameter("api_key", "api key").DataType("string")).
 		Operation("searchLights"))
 }
 
 func (d DiscoverResource) searchLights(request *restful.Request, response *restful.Response) {
 	Discover(d.LightResource)
+}
+
+func Sync() {
+	for i := range allBackends {
+		allBackends[i].Sync()
+	}
 }
 
 func Load(l *chromaticity.LightResource) {
