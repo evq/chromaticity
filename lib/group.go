@@ -2,6 +2,7 @@ package chromaticity
 
 import (
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"github.com/evq/chromaticity/utils"
 	"github.com/evq/go-restful"
 	"github.com/lucasb-eyer/go-colorful"
@@ -68,6 +69,11 @@ func (g Group) GetNumPixels() uint16 {
 }
 
 func (g Group) GetType() string {
+	for l := range g.Lights {
+		if (*g.Lights[l]).GetType() == "zigbee" {
+			return "zigbee"
+		}
+	}
 	return "group"
 }
 
@@ -77,7 +83,10 @@ func (l LightResource) listGroups(request *restful.Request, response *restful.Re
 
 func (l LightResource) createGroup(request *restful.Request, response *restful.Response) {
 	pGI := GroupInfo{}
-	request.ReadEntity(&pGI)
+	err := request.ReadEntity(&pGI)
+	if err != nil {
+		log.Error(err)
+	}
 
 	thisLen := strconv.Itoa(len(l.Groups) + 1)
 
@@ -92,7 +101,7 @@ func (l LightResource) createGroup(request *restful.Request, response *restful.R
 
 	ginfo := GroupInfo{pGI.LightIDs,
 		pGI.Name,
-		Luminaire}
+		LightGroup}
 
 	l.Groups[thisLen] = Group{
 		ginfo,
@@ -101,7 +110,6 @@ func (l LightResource) createGroup(request *restful.Request, response *restful.R
 		theseLights,
 	}
 
-	// TODO: Add to SQLite db
 	response.WriteEntity(l.Groups[thisLen]) // This might not follow spec!!!
 }
 

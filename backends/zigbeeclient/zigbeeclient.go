@@ -27,17 +27,13 @@ type ZigbeeLight struct {
 
 type ZigbeeLightDev struct {
 	zigbee.ZigbeeDevice
-	CurrentColor   colorful.Color      `json:"-"`
-	NextColor      colorful.Color      `json:"-"`
+	PrevLightState *chromaticity.State `json:"state"`
 	LightState     *chromaticity.State `json:"state"`
-	Effect         string              `json:"-"`
-	TransitionTime uint16              `json:"-"`
 	EndpointId     uint8               `json:"-"`
 	Type           string              `json:"-"`
 }
 
 func (k ZigbeeLight) SetColor(c colorful.Color) {
-	k.Device.NextColor = c
 }
 
 func (k ZigbeeLight) SetColors(c []colorful.Color) {
@@ -63,14 +59,40 @@ func (b *Backend) _Sync() {
 			for i := range b.Devices {
 				dev := b.Devices[i]
 				state := dev.LightState
-				if !reflect.DeepEqual(dev.NextColor, dev.CurrentColor) {
-					if !state.On {
-						b.Gateway.MoveToLightLevelWOnOff(dev.ZigbeeDevice, dev.EndpointId, 0x00, state.TransitionTime)
-					} else {
+				prev := dev.PrevLightState
+				if !reflect.DeepEqual(state, prev) {
+					if state.On != prev.On {
+						if !state.On {
+							b.Gateway.MoveToLightLevelWOnOff(dev.ZigbeeDevice, dev.EndpointId, 0x00, state.TransitionTime)
+						} else {
+							b.Gateway.MoveToLightLevelWOnOff(dev.ZigbeeDevice, dev.EndpointId, state.Bri, state.TransitionTime)
+							// Avoid setting the brightness again below if we are turning on the light and setting a new brightness
+							prev.Bri = state.Bri
+						}
+						b.Gateway.Send()
+						prev.On = state.On
+					}
+					if state.Bri != prev.Bri {
 						b.Gateway.MoveToLightLevelWOnOff(dev.ZigbeeDevice, dev.EndpointId, state.Bri, state.TransitionTime)
 						b.Gateway.Send()
-
-						if dev.Type == chromaticity.Ex_Color_Light {
+						prev.Bri = state.Bri
+						}
+					}
+					if dev.Type == chromaticity.Ex_Color_Light {
+						if state.Effect != prev.Effect || state.TransitionTime != prev.TransitionTime {
+							if state.Effect != "none" {
+								b.Gateway.Loop(dev.ZigbeeDevice, dev.EndpointId, state.Hue, state.TransitionTime)
+								prev.Hue = state.Hue
+							} else {
+								b.Gateway.StopLoop(dev.ZigbeeDevice, dev.EndpointId, state.Hue, state.TransitionTime)
+							}
+							b.Gateway.Send()
+							prev.Effect = state.Effect
+							prev.TransitionTime = state.TransitionTime
+						}
+					}
+					// The only fields that haven't been updated are those defining the color
+					if !reflect.DeepEqual(state, prev) && dev.Type == chromaticity.Ex_Color_Light {
 							switch state.Colormode {
 							case "xy":
 								b.Gateway.MoveToXY(dev.ZigbeeDevice, dev.EndpointId, uint16(state.Xy[0]*65535), uint16(state.Xy[1]*65535), state.TransitionTime)
@@ -79,29 +101,10 @@ func (b *Backend) _Sync() {
 							case "ct":
 								b.Gateway.MoveToColorTemp(dev.ZigbeeDevice, dev.EndpointId, dev.LightState.Ct, dev.LightState.TransitionTime)
 							}
-						}
-					}
-					b.Gateway.Send()
-					b.Devices[i].CurrentColor = dev.NextColor
-
-					if state.Effect != "none" && dev.Type == chromaticity.Ex_Color_Light {
-						b.Gateway.Loop(dev.ZigbeeDevice, dev.EndpointId, state.Hue, state.TransitionTime)
-						b.Gateway.Send()
+							b.Gateway.Send()
+							*dev.PrevLightState = *dev.LightState
 					}
 				}
-				if dev.Type == chromaticity.Ex_Color_Light {
-					if dev.Effect != state.Effect || dev.TransitionTime != state.TransitionTime {
-						if state.Effect != "none" {
-							b.Gateway.Loop(dev.ZigbeeDevice, dev.EndpointId, state.Hue, state.TransitionTime)
-						} else {
-							b.Gateway.StopLoop(dev.ZigbeeDevice, dev.EndpointId, state.Hue, state.TransitionTime)
-						}
-						b.Gateway.Send()
-						b.Devices[i].Effect = dev.LightState.Effect
-						b.Devices[i].TransitionTime = dev.LightState.TransitionTime
-					}
-				}
-			}
 			time.Sleep(time.Duration(10) * time.Millisecond)
 		}
 	}
@@ -175,6 +178,7 @@ func (b *Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
 		light.SwVersion = "0"
 		light.LightState = chromaticity.NewState()
 		b.Devices[i].LightState = light.LightState
+		b.Devices[i].PrevLightState = chromaticity.NewState()
 
 		id := strconv.Itoa(len(l.Lights) + 1)
 

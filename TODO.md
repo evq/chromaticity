@@ -6,3 +6,4 @@ TODO
 * Add more debug logging using logrus
 * Switch to gopkg.in for versioning?
 * Need to add discover devices support for zigbee backend
+* Persist groups and discovered lights to disk
