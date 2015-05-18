@@ -11,8 +11,14 @@ swagger-ui:
 static/apidocs: swagger-ui
 	cp -R swagger-ui/dist static/apidocs
 	rm static/apidocs/index.html
-	cd static/apidocs && cp ../index.html .
-	cd static/apidocs/lib && cp ../../arrive.min.js .
+	$(MAKE) patch-static
+
+.PHONY: patch-static
+patch-static:
+	cp static/patch/index.html static/apidocs/index.html
+	cp static/patch/arrive.min.js static/apidocs/lib/arrive.min.js
+	cp static/patch/screen.css static/apidocs/css/screen.css
+	cp static/patch/logo_small.png static/apidocs/images/logo_small.png
 
 static/static.go: static/apidocs
 	$(eval STATIC_DIRS:=$(shell find static -type d | tr \\n ' '))

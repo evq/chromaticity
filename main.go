@@ -7,6 +7,7 @@ import (
 	"github.com/evq/chromaticity/servers/ssdp"
 	"gopkg.in/alecthomas/kingpin.v1"
 	"os"
+	"os/user"
 	"strconv"
 )
 
@@ -28,6 +29,7 @@ var (
 	version = app.Flag("version", "Show application version.").Short('v').Dispatch(onVersion).Bool()
 	debug   = app.Flag("debug", "Enable debug mode.").Short('d').Bool()
 	port    = app.Flag("port", "Api server port.").Short('p').Default("80").Int()
+	configfile    = app.Flag("config", "Config file.").Short('c').Default("").String()
 )
 
 func main() {
@@ -44,6 +46,16 @@ func main() {
 	if *debug {
 		log.SetLevel(log.DebugLevel)
 	}
+
+
+	if *configfile == "" {
+		usr, err := user.Current()
+		if err != nil {
+			log.Fatal(err)
+		}
+		*configfile = usr.HomeDir + "/.chromaticity/data.json"
+	}
+
 	ssdp.StartServer(strconv.Itoa(*port))
-	api.StartServer(strconv.Itoa(*port))
+	api.StartServer(strconv.Itoa(*port), *configfile)
 }

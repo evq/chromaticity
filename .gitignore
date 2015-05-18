@@ -1,3 +1,12 @@
+# Generic ignores
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+.AppleDouble
+.LSOverride
+
+# Project specific ignores
 chromaticity
 data.json
 Dockerfile

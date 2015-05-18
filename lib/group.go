@@ -1,13 +1,12 @@
 package chromaticity
 
 import (
-	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/evq/chromaticity/utils"
 	"github.com/evq/go-restful"
 	"github.com/lucasb-eyer/go-colorful"
-	"net/http"
 	"strconv"
+	"reflect"
 )
 
 const Luminaire string = "Luminaire"
@@ -82,53 +81,123 @@ func (l LightResource) listGroups(request *restful.Request, response *restful.Re
 }
 
 func (l LightResource) createGroup(request *restful.Request, response *restful.Response) {
-	pGI := GroupInfo{}
-	err := request.ReadEntity(&pGI)
-	if err != nil {
-		log.Error(err)
-	}
+	ginfo := GroupInfo{}
+	err := request.ReadEntity(&ginfo)
+	if err != nil { WriteError(response, JSONError, "/groups", nil); return }
 
 	thisLen := strconv.Itoa(len(l.Groups) + 1)
 
 	// Copy state from first bulb
-	thisState := (*l.Lights[pGI.LightIDs[0]]).GetState().ColorState
+	thisState := (*l.Lights[ginfo.LightIDs[0]]).GetState().ColorState
 
-	theseLights := make([]*Light, len(pGI.LightIDs), len(pGI.LightIDs))
+	theseLights := make([]*Light, len(ginfo.LightIDs), len(ginfo.LightIDs))
 
-	for x := range pGI.LightIDs {
-		theseLights[x] = l.Lights[pGI.LightIDs[x]]
-	}
+	for i := range ginfo.LightIDs { theseLights[i] = l.Lights[ginfo.LightIDs[i]] }
 
-	ginfo := GroupInfo{pGI.LightIDs,
-		pGI.Name,
-		LightGroup}
+	ginfo.GroupType = LightGroup
 
-	l.Groups[thisLen] = Group{
+	l.Groups[thisLen] = &Group{
 		ginfo,
 		thisState,
 		false,
 		theseLights,
 	}
 
-	response.WriteEntity(l.Groups[thisLen]) // This might not follow spec!!!
+	WritePOSTSuccess(response, []string{"/groups/" + thisLen})
 }
 
-func (l LightResource) getGroupAttr(request *restful.Request, response *restful.Response) {
+func (l LightResource) deleteGroup(request *restful.Request, response *restful.Response) {
 	id := request.PathParameter("group-id")
+	if nid, err := strconv.Atoi(id); err != nil || nid > len(l.Groups) {
+		WriteError(response, ResourceError, "/groups/" + id, &map[string]string{"resource":"/groups/" + id})
+		return
+	}
+	if id == "0" { WriteError(response, ROGroupError, "/groups/" + id, nil); return }
+	group := l.Groups[id]
+	if group.GroupType == Luminaire || group.GroupType == Lightsource {
+		WriteError(response, ROGroupError, "/groups/" + id, nil)
+		return
+	}
+
+	if group.State.EffectRoutine != nil && !group.State.EffectRoutine.Done {
+		for i := range group.Lights {
+			state := (*group.Lights[i]).GetState()
+			if state.EffectRoutine != nil {
+				log.Debug("[chromaticity/lib/group] Canceling effect")
+				if !state.EffectRoutine.Done {
+					state.EffectRoutine.Done = true
+					state.EffectRoutine.Signal <- true
+					close(state.EffectRoutine.Signal)
+				}
+				state.EffectRoutine = nil
+				log.Debug("[chromaticity/lib/group] Done canceling effect")
+			}
+		}
+	}
+
+	delete(l.Groups, id)
+
+	WriteDELETESuccess(response, []string{"/groups/" + id})
+}
+
+func (l LightResource) getGroup(request *restful.Request, response *restful.Response) {
+	id := request.PathParameter("group-id")
+	if nid, err := strconv.Atoi(id); err != nil || nid > len(l.Groups) {
+		WriteError(response, ResourceError, "/groups/" + id, &map[string]string{"resource":"/groups/" + id})
+		return
+	}
 	response.WriteEntity(l.Groups[id])
+}
+
+func (l LightResource) updateGroup(request *restful.Request, response *restful.Response) {
+	id := request.PathParameter("group-id")
+	if nid, err := strconv.Atoi(id); err != nil || nid > len(l.Groups) {
+		WriteError(response, ResourceError, "/groups/" + id, &map[string]string{"resource":"/groups/" + id})
+		return
+	}
+	if id == "0" { WriteError(response, ROGroupError, "/groups/" + id, nil); return }
+
+	group := l.Groups[id]
+	if group.GroupType == Luminaire || group.GroupType == Lightsource {
+		WriteError(response, ROGroupError, "/groups/" + id, nil)
+		return
+	}
+
+	updated := GroupInfo{}
+	err := request.ReadEntity(&updated)
+	if err != nil { WriteError(response, JSONError, "/groups/" + id, nil); return }
+	if updated.Name != group.Name {
+		group.Name = updated.Name
+	}
+	if updated.LightIDs != nil && !reflect.DeepEqual(updated.LightIDs, group.LightIDs) {
+		group.LightIDs = updated.LightIDs
+		group.Lights = make([]*Light, len(group.LightIDs), len(group.LightIDs))
+		for i := range group.LightIDs { group.Lights[i] = l.Lights[group.LightIDs[i]] }
+	}
+
+	reqmap := map[string]interface{}{}
+	request.ReadEntity(&reqmap)
+	respmaps := make(map[string]interface{})
+	for k, v := range reqmap { respmaps["/groups/" + id + "/" + k] = v }
+
+	WritePUTSuccess(response, respmaps)
 }
 
 func (l LightResource) updateGroupState(request *restful.Request, response *restful.Response) {
 	id := request.PathParameter("group-id")
+	if nid, err := strconv.Atoi(id); err != nil || nid > len(l.Groups) {
+		WriteError(response, ResourceError, "/groups/" + id, &map[string]string{"resource":"/groups/" + id})
+		return
+	}
 	// Special case, hidden group of all lights
 	// FIXME doesn't work for effects
-	var group Group
+	var group *Group
 	if id == "0" {
 		ids := []string{}
 		for k, _ := range l.Lights {
 			ids = append(ids, k)
 		}
-		group = *NewGroup(
+		group = NewGroup(
 			&l,
 			GroupInfo{ids, "All Lights", "0"},
 			NewState().ColorState,
@@ -136,11 +205,6 @@ func (l LightResource) updateGroupState(request *restful.Request, response *rest
 		)
 	} else {
 		group = l.Groups[id]
-	}
-	if len(group.Name) == 0 {
-		response.AddHeader("Content-Type", "text/plain")
-		response.WriteErrorString(http.StatusNotFound, "404: Group could not be found.")
-		return
 	}
 
 	last_color := group.State.GetColor()
@@ -151,14 +215,14 @@ func (l LightResource) updateGroupState(request *restful.Request, response *rest
 		state := (*l.Lights[id]).GetState()
 		UpdateColorState(state.ColorState, request)
 		if state.EffectRoutine != nil {
-			fmt.Println("Canceling")
+			log.Debug("[chromaticity/lib/group] Canceling effect")
 			if !state.EffectRoutine.Done {
 				state.EffectRoutine.Done = true
 				state.EffectRoutine.Signal <- true
 				close(state.EffectRoutine.Signal)
 			}
 			state.EffectRoutine = nil
-			fmt.Println("done canceling")
+			log.Debug("[chromaticity/lib/group] Done canceling effect")
 		}
 	}
 
@@ -173,7 +237,12 @@ func (l LightResource) updateGroupState(request *restful.Request, response *rest
 		}
 	}
 
-	response.WriteEntity(group)
+	reqmap := map[string]interface{}{}
+	request.ReadEntity(&reqmap)
+	respmaps := make(map[string]interface{})
+	for k, v := range reqmap { respmaps["/groups/" + id + "/action/" + k] = v }
+
+	WritePUTSuccessExplicit(response, respmaps)
 }
 
 func (l LightResource) RegisterGroupsApi(container *restful.Container) {
@@ -189,21 +258,39 @@ func (l LightResource) _RegisterGroupsApi(ws *restful.WebService) {
 	ws.Route(ws.GET("/").To(l.listGroups).
 		Doc("list all groups").
 		Param(ws.PathParameter("api_key", "api key").DataType("string")).
-		Operation("listGroups"))
+		Operation("listGroups").
+		Writes([]Group{}))
 
 	ws.Route(ws.POST("/").To(l.createGroup).
 		Doc("create a group").
-		Operation("createGroup"))
+		Operation("createGroup").
+		Reads(GroupInfo{}).
+		Writes([]SuccessResponse{}))
 
-	ws.Route(ws.GET("{group-id}").To(l.getGroupAttr).
+	ws.Route(ws.GET("{group-id}").To(l.getGroup).
 		Doc("get group attributes").
-		Operation("getGroupAttr").
-		Param(ws.PathParameter("group-id", "identifier of the group").DataType("int")))
+		Operation("getGroup").
+		Param(ws.PathParameter("group-id", "identifier of the group").DataType("int")).
+		Writes(Group{}))
+
+	ws.Route(ws.PUT("{group-id}").To(l.updateGroup).
+		Doc("update group attributes").
+		Operation("updateGroup").
+		Param(ws.PathParameter("group-id", "identifier of the group").DataType("int")).
+		Reads(GroupInfo{}).
+		Writes([]SuccessResponse{}))
+
+	ws.Route(ws.DELETE("{group-id}").To(l.deleteGroup).
+		Doc("delete a group").
+		Operation("deleteGroup").
+		Param(ws.PathParameter("group-id", "identifier of the group").DataType("int")).
+		Writes([]SuccessResponse{}))
 
 	ws.Route(ws.PUT("/{group-id}/action").To(l.updateGroupState).
 		Doc("modify a groups's state").
 		Operation("updateGroupState").
 		Param(ws.PathParameter("api_key", "api key").DataType("string")).
 		Param(ws.PathParameter("group-id", "identifier of the group").DataType("int")).
-		Reads(ColorState{}))
+		Reads(ColorState{}).
+		Writes([]SuccessResponse{}))
 }

@@ -41,15 +41,15 @@ type Channel struct {
 	NextColors    []colorful.Color `json:"-"`
 }
 
-func (k OPCLight) SetColor(c colorful.Color) {
-	for i := range k.Chan.NextColors {
-		k.Chan.NextColors[i] = c
+func (o OPCLight) SetColor(c colorful.Color) {
+	for i := range o.Chan.NextColors {
+		o.Chan.NextColors[i] = c
 	}
 }
 
-func (k OPCLight) SetColors(c []colorful.Color) {
+func (o OPCLight) SetColors(c []colorful.Color) {
 	for i := range c {
-		k.Chan.NextColors[i] = c[i]
+		o.Chan.NextColors[i] = c[i]
 	}
 }
 
@@ -134,19 +134,19 @@ func (server *OPCServer) Connect() {
 	}
 }
 
-func (k OPCLight) GetNumPixels() uint16 {
-	return k.Chan.NumPixels
+func (o OPCLight) GetNumPixels() uint16 {
+	return o.Chan.NumPixels
 }
 
-func (k OPCLight) GetInfo() *chromaticity.LightInfo {
-	return k.LightInfo
+func (o OPCLight) GetInfo() *chromaticity.LightInfo {
+	return o.LightInfo
 }
 
-func (k OPCLight) GetState() *chromaticity.State {
-	return k.LightState
+func (o OPCLight) GetState() *chromaticity.State {
+	return o.LightState
 }
 
-func (k OPCLight) GetType() string {
+func (o OPCLight) GetType() string {
 	return "opc"
 }
 
