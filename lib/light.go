@@ -1,12 +1,11 @@
 package chromaticity
 
 import (
-	"github.com/evq/go-restful"
 	"github.com/evq/chromaticity/utils"
+	"github.com/evq/go-restful"
 	"github.com/lucasb-eyer/go-colorful"
 	"net/http"
 	"time"
-	//"fmt"
 )
 
 type State struct {
@@ -14,7 +13,7 @@ type State struct {
 	*ColorState
 }
 
-type ColorState struct {
+type ColorState struct { // Corresponds to "action" in Hue API
 	Alert          string    `json:"alert"`
 	Bri            uint8     `json:"bri"`
 	BriInc         int16     `json:"bri_inc,omitempty"`

@@ -4,3 +4,4 @@ Dockerfile
 apron.db
 static/static.go
 static/apidocs
+main
