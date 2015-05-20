@@ -2,7 +2,10 @@ package kinetclient
 
 import (
 	"encoding/json"
+	"fmt"
+	log "github.com/Sirupsen/logrus"
 	chromaticity "github.com/evq/chromaticity/lib"
+	"github.com/evq/chromaticity/utils"
 	"github.com/evq/go-kinet"
 	"github.com/lucasb-eyer/go-colorful"
 	"image/color"
@@ -14,6 +17,7 @@ type Backend struct {
 	PowerSupplies []kinet.PowerSupply          `json:"powerSupplies"`
 	NextColor     map[string][]*colorful.Color `json:"-"`
 	CurrentColor  map[string][]*colorful.Color `json:"-"`
+	Gamma         float64                      `json:"gamma"`
 }
 
 type KinetLight struct {
@@ -32,7 +36,7 @@ func (k KinetLight) SetColors(c []colorful.Color) {
 	k.SetColor(c[0])
 }
 
-func (b Backend) Sync() {
+func (b *Backend) Sync() {
 	pses := b.PowerSupplies
 	for i := range pses {
 		ps := pses[i]
@@ -40,15 +44,18 @@ func (b Backend) Sync() {
 	}
 }
 
-func (b Backend) PSSync(ps *kinet.PowerSupply) {
+func (b *Backend) PSSync(ps *kinet.PowerSupply) {
 	for {
 		eq := true
 
 		arr := make([]color.Color, len(b.NextColor[ps.Mac]))
 		for e := range arr {
-			// FIXME, switch to utils implementation of Clamp
-			r, g, bb := (*b.NextColor[ps.Mac][e]).Clamped().RGB255()
-			arr[e] = color.RGBA{r, g, bb, 0xFF}
+			c := *b.NextColor[ps.Mac][e]
+			utils.Clamp(&c)
+			r := utils.Linearize(c.R, b.Gamma)
+			g := utils.Linearize(c.G, b.Gamma)
+			bb := utils.Linearize(c.B, b.Gamma)
+			arr[e] = color.RGBA{uint8(255.0 * r), uint8(255.0 * g), uint8(255.0 * bb), 0xFF}
 			if *b.NextColor[ps.Mac][e] != *b.CurrentColor[ps.Mac][e] {
 				eq = false
 			}
@@ -81,12 +88,16 @@ func (k KinetLight) GetType() string {
 	return "kinet"
 }
 
-func (b Backend) GetType() string {
+func (b *Backend) GetType() string {
 	return "kinet"
 }
 
-func (b Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
-	json.Unmarshal(from, &b)
+func (b *Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
+	json.Unmarshal(from, b)
+	if b.Gamma == 0.0 {
+		b.Gamma = 1.0
+	}
+	log.Debug(fmt.Sprintf("Kinet backend loaded with gamma value: %f", b.Gamma))
 	pses := b.PowerSupplies
 
 	for i := range pses {
@@ -97,7 +108,7 @@ func (b Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
 	}
 }
 
-func (b Backend) DiscoverLights(l *chromaticity.LightResource) {
+func (b *Backend) DiscoverLights(l *chromaticity.LightResource) {
 	powerSupplies := kinet.Discover()
 
 	for i := range powerSupplies {

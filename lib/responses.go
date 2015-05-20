@@ -27,6 +27,7 @@ var ErrorDescriptions map[int]string = map[int]string{
 	ROGroupError: "It is not allowed to update or delete group of this type",
 }
 
+// Offical API returns 200 on error?
 var ErrorStatusCodes map[int]int = map[int]int{
 	JSONError: 400,
 	ResourceError: 404,

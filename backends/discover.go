@@ -13,7 +13,7 @@ import (
 )
 
 var allBackends = []Backend{
-	kinetclient.Backend{},
+	&kinetclient.Backend{},
 	&opclient.Backend{},
 	//&limitlessclient.Backend{},
 	&zigbeeclient.Backend{},
@@ -46,7 +46,7 @@ func (d DiscoverResource) _RegisterDiscoveryApi(ws *restful.WebService) {
 		Doc("search for lights").
 		Param(ws.PathParameter("api_key", "api key").DataType("string")).
 		Operation("searchLights").
-	  Writes(chromaticity.SuccessResponse{}))
+	  Writes([]chromaticity.SuccessResponse{}))
 }
 
 func (d DiscoverResource) searchLights(request *restful.Request, response *restful.Response) {
