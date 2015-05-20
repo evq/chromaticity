@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/evq/chromaticity/backends"
+	chromaticity "github.com/evq/chromaticity/lib"
+	"github.com/evq/chromaticity/static"
+	"github.com/evq/chromaticity/utils"
 	"github.com/evq/go-restful"
 	"github.com/evq/go-restful/swagger"
-	"github.com/evq/chromaticity/backends"
-	"github.com/evq/chromaticity/static"
-	chromaticity "github.com/evq/chromaticity/lib"
-	"github.com/evq/chromaticity/utils"
-	"net/http"
 	"mime"
+	"net/http"
 	"strings"
 	"text/template"
 )
@@ -25,7 +25,7 @@ type AuthHandler struct {
 	chainedHandler http.Handler
 }
 
-type AssetHandler struct { }
+type AssetHandler struct{}
 
 func (a *AssetHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	log.Debug(req.URL.Path)
@@ -70,6 +70,11 @@ func ReqRewriter(req *restful.Request, resp *restful.Response, chain *restful.Fi
 	resp.Header().Set("Access-Control-Allow-Origin", "*")
 	resp.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	resp.Header().Set("Access-Control-Allow-Methods", "HEAD,GET,PUT,DELETE,OPTIONS")
+
+	if req.Request.Method == "OPTIONS" {
+		// Return no content 201
+		return
+	}
 
 	chain.ProcessFilter(req, resp)
 }
@@ -124,10 +129,10 @@ func StartServer(port string, configfile string) {
 
 	// Uncomment to add some swagger
 	config := swagger.Config{
-		WebServices:     wsContainer.RegisteredWebServices(),
-		WebServicesUrl:  "/",
-		ApiPath:         "/swagger/apidocs.json",
-		SwaggerPath:     "/swagger/apidocs/",
+		WebServices:    wsContainer.RegisteredWebServices(),
+		WebServicesUrl: "/",
+		ApiPath:        "/swagger/apidocs.json",
+		SwaggerPath:    "/swagger/apidocs/",
 	}
 
 	//Container just for swagger
