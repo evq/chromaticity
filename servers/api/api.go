@@ -115,6 +115,8 @@ func StartServer(port string, configfile string) {
 	restful.SetLogger(log.StandardLogger())
 
 	wsContainer := restful.NewContainer()
+	// Enable gzip encoding
+	wsContainer.EnableContentEncoding(true)
 	wsContainer.Filter(ReqLogger)
 	wsContainer.Filter(ReqRewriter)
 

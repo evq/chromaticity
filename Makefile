@@ -4,11 +4,11 @@ xc:
 	docker run -it -v $(shell pwd):/build -v ${GOPATH}:/gopath slim-wink-buildroot
 	mv build chromaticity
 
-swagger-ui:
+swagger-ui/dist:
 	git submodule init
 	git submodule update
 
-static/apidocs: swagger-ui
+static/apidocs: swagger-ui/dist
 	cp -R swagger-ui/dist static/apidocs
 	rm static/apidocs/index.html
 	$(MAKE) patch-static

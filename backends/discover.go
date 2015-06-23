@@ -2,8 +2,8 @@ package backends
 
 import (
 	"encoding/json"
-	"github.com/evq/go-restful"
 	"github.com/evq/chromaticity/backends/kinetclient"
+	"github.com/evq/go-restful"
 	//"github.com/evq/chromaticity/backends/limitlessclient"
 	"github.com/evq/chromaticity/backends/opclient"
 	"github.com/evq/chromaticity/backends/zigbeeclient"
@@ -46,7 +46,7 @@ func (d DiscoverResource) _RegisterDiscoveryApi(ws *restful.WebService) {
 		Doc("search for lights").
 		Param(ws.PathParameter("api_key", "api key").DataType("string")).
 		Operation("searchLights").
-	  Writes([]chromaticity.SuccessResponse{}))
+		Writes([]chromaticity.SuccessResponse{}))
 }
 
 func (d DiscoverResource) searchLights(request *restful.Request, response *restful.Response) {
@@ -90,6 +90,6 @@ func Discover(l *chromaticity.LightResource) {
 		l.Lights = map[string]*chromaticity.Light{}
 	}
 	for i := range allBackends {
-		allBackends[i].DiscoverLights(l)
+		go allBackends[i].DiscoverLights(l)
 	}
 }
