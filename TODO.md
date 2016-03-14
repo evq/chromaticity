@@ -7,3 +7,4 @@ TODO
 * Switch to gopkg.in for versioning?
 * Need to add discover devices support for zigbee backend
 * Persist groups and discovered lights to disk
+* Re-enable Zigbee backend after fixing gorm db syntax error w latest version

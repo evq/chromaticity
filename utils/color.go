@@ -49,32 +49,36 @@ func FromMirads(temp uint16, bri uint8) colorful.Color {
 	return c
 }
 
-func WhiteCmpt(c colorful.Color, w colorful.Color) float64 {
+func XCmpt(c colorful.Color, x colorful.Color) float64 {
 	_, sat, _ := c.Hsv()
-	diff := w.DistanceCIE94(c)
+	_, x_sat, _ := x.Hsv()
+	diff := x.DistanceCIE94(c)
 	if diff > 1.0 {
 		diff = 1.0
 	}
 
-	return (1.0 - diff) * (1.0 - math.Pow(sat, 5))
+	return (1.0 - diff) * (1.0 - math.Pow(math.Abs(x_sat-sat), 5))
 }
 
 func RgbToRgbw(c colorful.Color, mir uint16) (rgb colorful.Color, w float64) {
 	white := FromMirads(mir, 255)
 	Clamp(&white)
+	return RgbToRgbx(c, white)
+}
 
+func RgbToRgbx(c colorful.Color, x colorful.Color) (rgb colorful.Color, x_val float64) {
 	_, _, v := c.Hsv()
 	Maximize(&c)
 
-	w = WhiteCmpt(c, white)
+	x_val = XCmpt(c, x)
 
-	white.R = w * white.R
-	white.G = w * white.G
-	white.B = w * white.B
+	x.R = x_val * x.R
+	x.G = x_val * x.G
+	x.B = x_val * x.B
 
-	rgb.R = c.R - white.R
-	rgb.G = c.G - white.G
-	rgb.B = c.B - white.B
+	rgb.R = c.R - x.R
+	rgb.G = c.G - x.G
+	rgb.B = c.B - x.B
 
 	max := math.Max(rgb.R, math.Max(rgb.G, rgb.B))
 
@@ -82,10 +86,13 @@ func RgbToRgbw(c colorful.Color, mir uint16) (rgb colorful.Color, w float64) {
 	rgb.G += (1.0 - max) * c.G
 	rgb.B += (1.0 - max) * c.B
 
+	Clamp(&rgb)
+
 	rgb.R *= v
 	rgb.G *= v
 	rgb.B *= v
-	w *= v
+
+	x_val *= v
 
 	return
 }

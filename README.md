@@ -2,7 +2,7 @@ Chromaticity
 ============
 
 Chromaticity exposes a Hue compatible REST API that has a modular
-backend design, allowing a user to control Zigbee, Color Kinetics,
+backend design, allowing a user to control Zigbee*, Color Kinetics,
 MiLight/LimitlessLED\*, and OPC (Open Pixel Control) devices through a
 unified API.
 

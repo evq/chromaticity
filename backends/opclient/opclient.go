@@ -66,7 +66,7 @@ func (server *OPCServer) Sync() {
 			channel := server.Channels[c]
 			if !reflect.DeepEqual(channel.NextColors, channel.CurrentColors) {
 				msg := opc.NewMessage(channel.ID)
-				if server.Type == "RGBW" {
+				if server.Type == "RGBW" || server.Type == "RGBA" {
 					msg.SetLength(2 * channel.NumPixels * 3)
 				} else {
 					msg.SetLength(channel.NumPixels * 3)
@@ -75,9 +75,14 @@ func (server *OPCServer) Sync() {
 				for i := 0; i < int(channel.NumPixels); i++ {
 					p := channel.NextColors[i]
 					utils.Clamp(&p)
-					if server.Type == "RGBW" {
-						rgb, w := utils.RgbToRgbw(p, server.White)
-						utils.Clamp(&rgb)
+					if server.Type == "RGBW" || server.Type == "RGBA" {
+						var rgb colorful.Color
+						var x float64
+						if server.Type == "RGBW" {
+							rgb, x = utils.RgbToRgbw(p, server.White)
+						} else if server.Type == "RGBA" {
+							rgb, x = utils.RgbToRgbx(p, colorful.Color{1.0, 0.8, 0})
+						}
 						msg.SetPixelColor(
 							2*i,
 							uint8(utils.Linearize(rgb.R, server.Gamma)*255),
@@ -86,7 +91,7 @@ func (server *OPCServer) Sync() {
 						)
 						msg.SetPixelColor(
 							2*i+1,
-							uint8(utils.Linearize(w, server.Gamma)*255),
+							uint8(utils.Linearize(x, server.Gamma)*255),
 							0,
 							0,
 						)
