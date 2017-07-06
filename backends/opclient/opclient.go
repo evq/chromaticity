@@ -186,7 +186,11 @@ func (b *Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
 			for k := 1; k < 9; k++ {
 				light.PointSymbol[strconv.Itoa(k)] = "none"
 			}
-			light.Name = server.Name + " Chan:" + strconv.Itoa(int(light.Chan.ID))
+			if len(server.Channels) == 1 {
+				light.Name = server.Name
+			} else {
+				light.Name = server.Name + " C" + strconv.Itoa(int(light.Chan.ID))
+			}
 			light.ModelId = "OPC-" + server.Type
 			light.SwVersion = "0"
 

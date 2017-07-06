@@ -24,12 +24,12 @@ func onVersion(context *kingpin.ParseContext) error {
 }
 
 var (
-	app     = kingpin.New("chromaticity", "A Hue-like REST API for your lights")
-	help    = app.Flag("help", "Show help.").Short('h').Dispatch(onHelp).Hidden().Bool()
-	version = app.Flag("version", "Show application version.").Short('v').Dispatch(onVersion).Bool()
-	debug   = app.Flag("debug", "Enable debug mode.").Short('d').Bool()
-	port    = app.Flag("port", "Api server port.").Short('p').Default("80").Int()
-	configfile    = app.Flag("config", "Config file.").Short('c').Default("").String()
+	app        = kingpin.New("chromaticity", "A Hue-like REST API for your lights")
+	help       = app.Flag("help", "Show help.").Short('h').Dispatch(onHelp).Hidden().Bool()
+	version    = app.Flag("version", "Show application version.").Short('v').Dispatch(onVersion).Bool()
+	debug      = app.Flag("debug", "Enable debug mode.").Short('d').Bool()
+	port       = app.Flag("port", "Api server port.").Short('p').Default("80").Int()
+	configfile = app.Flag("config", "Config file.").Short('c').Default("").String()
 )
 
 func main() {
@@ -47,13 +47,13 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
-
 	if *configfile == "" {
 		usr, err := user.Current()
 		if err != nil {
 			log.Fatal(err)
 		}
 		*configfile = usr.HomeDir + "/.chromaticity/data.json"
+		os.Chdir(usr.HomeDir + "/.chromaticity")
 	}
 
 	ssdp.StartServer(strconv.Itoa(*port))

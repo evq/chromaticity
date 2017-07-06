@@ -89,7 +89,7 @@ func ReqLogger(req *restful.Request, resp *restful.Response, chain *restful.Filt
 		strings.Split(req.Request.RemoteAddr, ":")[0],
 		api_key,
 		req.Request.Method,
-		req.Request.URL.RequestURI(),
+		req.Request.Host+req.Request.URL.RequestURI(),
 		req.Request.Header.Get("Content-Type"),
 		resp.StatusCode(),
 	))
@@ -106,11 +106,16 @@ func ReqLogger(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	log.Debug("[chromaticity/servers/api] " + string(content))
 }
 
+const persistencefile string = "persist.json"
+
 func StartServer(port string, configfile string) {
 	l := &chromaticity.LightResource{}
 	l.ConfigInfo = chromaticity.NewConfigInfo()
 	l.Schedules = map[string]string{}
 	backends.Load(l, configfile)
+	//l.Load(persistencefile)
+
+	l.LoadGroups()
 
 	restful.SetLogger(log.StandardLogger())
 
@@ -119,6 +124,7 @@ func StartServer(port string, configfile string) {
 	wsContainer.EnableContentEncoding(true)
 	wsContainer.Filter(ReqLogger)
 	wsContainer.Filter(ReqRewriter)
+	wsContainer.Filter(l.PersistOnChange(persistencefile))
 
 	// Register apis
 	l.RegisterConfigApi(wsContainer)
@@ -135,6 +141,7 @@ func StartServer(port string, configfile string) {
 		WebServicesUrl: "/",
 		ApiPath:        "/swagger/apidocs.json",
 		SwaggerPath:    "/swagger/apidocs/",
+		StaticHandler:  &AssetHandler{},
 	}
 
 	//Container just for swagger

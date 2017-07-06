@@ -2,8 +2,8 @@ package chromaticity
 
 import (
 	"fmt"
-	"github.com/evq/go-restful"
 	"github.com/evq/chromaticity/utils"
+	"github.com/evq/go-restful"
 )
 
 type ConfigInfo struct {

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	log "github.com/Sirupsen/logrus"
 	chromaticity "github.com/evq/chromaticity/lib"
-	"github.com/evq/go-apron"
 	"github.com/evq/go-zigbee"
 	"github.com/evq/go-zigbee/gateways/embercli"
 	"github.com/lucasb-eyer/go-colorful"
@@ -15,8 +14,8 @@ import (
 
 type Backend struct {
 	Gateway *embercli.EmberCliGateway `json:"gateway"`
-	Aprondb string                    `json:"aprondb"`
-	Devices []ZigbeeLightDev          `json:"-"`
+	//Aprondb string                    `json:"aprondb"`
+	Devices []ZigbeeLightDev `json:"devices"`
 }
 
 type ZigbeeLight struct {
@@ -26,11 +25,14 @@ type ZigbeeLight struct {
 }
 
 type ZigbeeLightDev struct {
-	zigbee.ZigbeeDevice
-	PrevLightState *chromaticity.State `json:"state"`
-	LightState     *chromaticity.State `json:"state"`
-	EndpointId     uint8               `json:"-"`
-	Type           string              `json:"-"`
+	ZigbeeDevice   zigbee.ZigbeeDevice
+	PrevLightState *chromaticity.State `json:"-"`
+	LightState     *chromaticity.State `json:"-"`
+	EndpointId     uint8               `json:"endpoint"`
+	Type           string              `json:"type"`
+	NetAddr        uint16              `json:"netaddr"`
+	Name           string              `json:"name"`
+	ModelId        string              `json:"model"`
 }
 
 func (k ZigbeeLight) SetColor(c colorful.Color) {
@@ -72,12 +74,13 @@ func (b *Backend) _Sync() {
 						b.Gateway.Send()
 						prev.On = state.On
 					}
-					if state.Bri != prev.Bri {
+					if state.On && state.Bri != prev.Bri {
 						b.Gateway.MoveToLightLevelWOnOff(dev.ZigbeeDevice, dev.EndpointId, state.Bri, state.TransitionTime)
 						b.Gateway.Send()
 						prev.Bri = state.Bri
-						}
 					}
+				}
+				if state.On {
 					if dev.Type == chromaticity.Ex_Color_Light {
 						if state.Effect != prev.Effect || state.TransitionTime != prev.TransitionTime {
 							if state.Effect != "none" {
@@ -93,18 +96,19 @@ func (b *Backend) _Sync() {
 					}
 					// The only fields that haven't been updated are those defining the color
 					if !reflect.DeepEqual(state, prev) && dev.Type == chromaticity.Ex_Color_Light {
-							switch state.Colormode {
-							case "xy":
-								b.Gateway.MoveToXY(dev.ZigbeeDevice, dev.EndpointId, uint16(state.Xy[0]*65535), uint16(state.Xy[1]*65535), state.TransitionTime)
-							case "hs":
-								b.Gateway.MoveToHueSat(dev.ZigbeeDevice, dev.EndpointId, uint8(state.Hue/257), dev.LightState.Sat, dev.LightState.TransitionTime)
-							case "ct":
-								b.Gateway.MoveToColorTemp(dev.ZigbeeDevice, dev.EndpointId, dev.LightState.Ct, dev.LightState.TransitionTime)
-							}
-							b.Gateway.Send()
-							*dev.PrevLightState.ColorState = *dev.LightState.ColorState
+						switch state.Colormode {
+						case "xy":
+							b.Gateway.MoveToXY(dev.ZigbeeDevice, dev.EndpointId, uint16(state.Xy[0]*65535), uint16(state.Xy[1]*65535), state.TransitionTime)
+						case "hs":
+							b.Gateway.MoveToHueSat(dev.ZigbeeDevice, dev.EndpointId, uint8(state.Hue/257), dev.LightState.Sat, dev.LightState.TransitionTime)
+						case "ct":
+							b.Gateway.MoveToColorTemp(dev.ZigbeeDevice, dev.EndpointId, dev.LightState.Ct, dev.LightState.TransitionTime)
+						}
+						b.Gateway.Send()
+						*dev.PrevLightState.ColorState = *dev.LightState.ColorState
 					}
 				}
+			}
 			time.Sleep(time.Duration(10) * time.Millisecond)
 		}
 	}
@@ -133,48 +137,54 @@ func (b *Backend) GetType() string {
 func (b *Backend) ImportLights(l *chromaticity.LightResource, from []byte) {
 	json.Unmarshal(from, b)
 
-	if b.Aprondb == "" {
-		b.Aprondb = "/database/apron.db"
+	//if b.Aprondb == "" {
+	for i := range b.Devices {
+		b.Devices[i].ZigbeeDevice = zigbee.ZigbeeDevice{}
+		b.Devices[i].ZigbeeDevice.NetAddr = b.Devices[i].NetAddr
+		// Both IeeeAddr and Endpoints are not required to be populated
 	}
+	//} else {
+	//db, err := apron.Open(b.Aprondb)
+	//if err != nil {
+	//log.Error("[chromaticity/backends/zigbee] Unable to open apron database: " + b.Aprondb)
+	//return
+	//}
 
-	db, err := apron.Open(b.Aprondb)
-	if err != nil {
-		log.Error("[chromaticity/backends/zigbee] Unable to open apron database: " + b.Aprondb)
-		return
-	}
+	//devices := db.GetZigbeeDevices()
+	//b.Devices = make([]ZigbeeLightDev, len(devices), len(devices))
 
-	devices := db.GetZigbeeDevices()
-	b.Devices = make([]ZigbeeLightDev, len(devices), len(devices))
+	//for i := range devices {
+	//b.Devices[i].ZigbeeDevice = devices[i]
+	//b.Devices[i].Name = devices[i].Name
 
-	for i := range devices {
-		b.Devices[i].ZigbeeDevice = devices[i]
+	//var endpoint *zigbee.Endpoint
+	//// Assume single endpoint per device
+	//for b.Devices[i].EndpointId, endpoint = range devices[i].Endpoints {
+	//break
+	//}
+	//if endpoint.DeviceType == zigbee.ZLLExtendedColorLight {
+	//b.Devices[i].Type = chromaticity.Ex_Color_Light
+	//} else {
+	//b.Devices[i].Type = chromaticity.Dimmable_Light
+	//}
+	//basicinfo := (*endpoint).InClusters[zigbee.BasicCluster].Attributes
+	//b.Devices[i].ModelId = basicinfo[zigbee.ModelId]
+	//}
+	//}
 
-		var endpoint *zigbee.Endpoint
-		// Assume single endpoint per device
-		for b.Devices[i].EndpointId, endpoint = range devices[i].Endpoints {
-			break
-		}
-
+	for i := range b.Devices {
 		light := ZigbeeLight{}
 		light.Device = &b.Devices[i]
 
 		light.LightInfo = &chromaticity.LightInfo{}
-
-		if endpoint.DeviceType == zigbee.ZLLExtendedColorLight {
-			light.Type = chromaticity.Ex_Color_Light
-			light.Device.Type = chromaticity.Ex_Color_Light
-		} else {
-			light.Type = chromaticity.Dimmable_Light
-			light.Device.Type = chromaticity.Dimmable_Light
-		}
+		light.Type = light.Device.Type
 
 		light.PointSymbol = make(map[string]string, 8)
 		for k := 1; k < 9; k++ {
 			light.PointSymbol[strconv.Itoa(k)] = "none"
 		}
-		basicinfo := (*endpoint).InClusters[zigbee.BasicCluster].Attributes
-		light.Name = devices[i].Name
-		light.ModelId = basicinfo[zigbee.ModelId]
+		light.Name = light.Device.Name
+		light.ModelId = light.Device.ModelId
 		light.SwVersion = "0"
 		light.LightState = chromaticity.NewState()
 		b.Devices[i].LightState = light.LightState

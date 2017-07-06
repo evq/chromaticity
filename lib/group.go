@@ -1,17 +1,21 @@
 package chromaticity
 
 import (
+	"encoding/json"
 	log "github.com/Sirupsen/logrus"
 	"github.com/evq/chromaticity/utils"
 	"github.com/evq/go-restful"
 	"github.com/lucasb-eyer/go-colorful"
-	"strconv"
+	"io/ioutil"
 	"reflect"
+	"strconv"
 )
 
 const Luminaire string = "Luminaire"
 const Lightsource string = "Lightsource"
 const LightGroup string = "LightGroup"
+
+const groupsfile string = "groups.json"
 
 type Group struct {
 	GroupInfo
@@ -76,6 +80,28 @@ func (g Group) GetType() string {
 	return "group"
 }
 
+func (l LightResource) persistGroups() {
+	groupsInfo := make(map[string]GroupInfo, len(l.Groups))
+	for k := range l.Groups {
+		groupsInfo[k] = l.Groups[k].GroupInfo
+	}
+	str, _ := json.MarshalIndent(groupsInfo, "", "    ")
+
+	err := ioutil.WriteFile(groupsfile, str, 0644)
+	if err != nil {
+		log.Error("[chromaticity/lib/group] Error persisting groups")
+	}
+}
+
+func (l LightResource) LoadGroups() {
+	groupsInfo := make(map[string]GroupInfo, len(l.Groups))
+	data, _ := ioutil.ReadFile(groupsfile)
+	json.Unmarshal(data, &groupsInfo)
+	for k := range groupsInfo {
+		l._createGroup(groupsInfo[k], k)
+	}
+}
+
 func (l LightResource) listGroups(request *restful.Request, response *restful.Response) {
 	response.WriteEntity(l.Groups)
 }
@@ -83,39 +109,50 @@ func (l LightResource) listGroups(request *restful.Request, response *restful.Re
 func (l LightResource) createGroup(request *restful.Request, response *restful.Response) {
 	ginfo := GroupInfo{}
 	err := request.ReadEntity(&ginfo)
-	if err != nil { WriteError(response, JSONError, "/groups", nil); return }
-
+	if err != nil {
+		WriteError(response, JSONError, "/groups", nil)
+		return
+	}
 	thisLen := strconv.Itoa(len(l.Groups) + 1)
+	l._createGroup(ginfo, thisLen)
+	l.persistGroups()
+	WritePOSTSuccess(response, []string{"/groups/" + thisLen})
+}
+
+func (l LightResource) _createGroup(ginfo GroupInfo, index string) {
 
 	// Copy state from first bulb
 	thisState := (*l.Lights[ginfo.LightIDs[0]]).GetState().ColorState
 
 	theseLights := make([]*Light, len(ginfo.LightIDs), len(ginfo.LightIDs))
 
-	for i := range ginfo.LightIDs { theseLights[i] = l.Lights[ginfo.LightIDs[i]] }
+	for i := range ginfo.LightIDs {
+		theseLights[i] = l.Lights[ginfo.LightIDs[i]]
+	}
 
 	ginfo.GroupType = LightGroup
 
-	l.Groups[thisLen] = &Group{
+	l.Groups[index] = &Group{
 		ginfo,
 		thisState,
 		false,
 		theseLights,
 	}
-
-	WritePOSTSuccess(response, []string{"/groups/" + thisLen})
 }
 
 func (l LightResource) deleteGroup(request *restful.Request, response *restful.Response) {
 	id := request.PathParameter("group-id")
 	if nid, err := strconv.Atoi(id); err != nil || nid > len(l.Groups) {
-		WriteError(response, ResourceError, "/groups/" + id, &map[string]string{"resource":"/groups/" + id})
+		WriteError(response, ResourceError, "/groups/"+id, &map[string]string{"resource": "/groups/" + id})
 		return
 	}
-	if id == "0" { WriteError(response, ROGroupError, "/groups/" + id, nil); return }
+	if id == "0" {
+		WriteError(response, ROGroupError, "/groups/"+id, nil)
+		return
+	}
 	group := l.Groups[id]
 	if group.GroupType == Luminaire || group.GroupType == Lightsource {
-		WriteError(response, ROGroupError, "/groups/" + id, nil)
+		WriteError(response, ROGroupError, "/groups/"+id, nil)
 		return
 	}
 
@@ -143,7 +180,7 @@ func (l LightResource) deleteGroup(request *restful.Request, response *restful.R
 func (l LightResource) getGroup(request *restful.Request, response *restful.Response) {
 	id := request.PathParameter("group-id")
 	if nid, err := strconv.Atoi(id); err != nil || nid > len(l.Groups) {
-		WriteError(response, ResourceError, "/groups/" + id, &map[string]string{"resource":"/groups/" + id})
+		WriteError(response, ResourceError, "/groups/"+id, &map[string]string{"resource": "/groups/" + id})
 		return
 	}
 	response.WriteEntity(l.Groups[id])
@@ -152,33 +189,43 @@ func (l LightResource) getGroup(request *restful.Request, response *restful.Resp
 func (l LightResource) updateGroup(request *restful.Request, response *restful.Response) {
 	id := request.PathParameter("group-id")
 	if nid, err := strconv.Atoi(id); err != nil || nid > len(l.Groups) {
-		WriteError(response, ResourceError, "/groups/" + id, &map[string]string{"resource":"/groups/" + id})
+		WriteError(response, ResourceError, "/groups/"+id, &map[string]string{"resource": "/groups/" + id})
 		return
 	}
-	if id == "0" { WriteError(response, ROGroupError, "/groups/" + id, nil); return }
+	if id == "0" {
+		WriteError(response, ROGroupError, "/groups/"+id, nil)
+		return
+	}
 
 	group := l.Groups[id]
 	if group.GroupType == Luminaire || group.GroupType == Lightsource {
-		WriteError(response, ROGroupError, "/groups/" + id, nil)
+		WriteError(response, ROGroupError, "/groups/"+id, nil)
 		return
 	}
 
 	updated := GroupInfo{}
 	err := request.ReadEntity(&updated)
-	if err != nil { WriteError(response, JSONError, "/groups/" + id, nil); return }
+	if err != nil {
+		WriteError(response, JSONError, "/groups/"+id, nil)
+		return
+	}
 	if updated.Name != group.Name {
 		group.Name = updated.Name
 	}
 	if updated.LightIDs != nil && !reflect.DeepEqual(updated.LightIDs, group.LightIDs) {
 		group.LightIDs = updated.LightIDs
 		group.Lights = make([]*Light, len(group.LightIDs), len(group.LightIDs))
-		for i := range group.LightIDs { group.Lights[i] = l.Lights[group.LightIDs[i]] }
+		for i := range group.LightIDs {
+			group.Lights[i] = l.Lights[group.LightIDs[i]]
+		}
 	}
 
 	reqmap := map[string]interface{}{}
 	request.ReadEntity(&reqmap)
 	respmaps := make(map[string]interface{})
-	for k, v := range reqmap { respmaps["/groups/" + id + "/" + k] = v }
+	for k, v := range reqmap {
+		respmaps["/groups/"+id+"/"+k] = v
+	}
 
 	WritePUTSuccess(response, respmaps)
 }
@@ -186,7 +233,7 @@ func (l LightResource) updateGroup(request *restful.Request, response *restful.R
 func (l LightResource) updateGroupState(request *restful.Request, response *restful.Response) {
 	id := request.PathParameter("group-id")
 	if nid, err := strconv.Atoi(id); err != nil || nid > len(l.Groups) {
-		WriteError(response, ResourceError, "/groups/" + id, &map[string]string{"resource":"/groups/" + id})
+		WriteError(response, ResourceError, "/groups/"+id, &map[string]string{"resource": "/groups/" + id})
 		return
 	}
 	// Special case, hidden group of all lights
@@ -240,7 +287,9 @@ func (l LightResource) updateGroupState(request *restful.Request, response *rest
 	reqmap := map[string]interface{}{}
 	request.ReadEntity(&reqmap)
 	respmaps := make(map[string]interface{})
-	for k, v := range reqmap { respmaps["/groups/" + id + "/action/" + k] = v }
+	for k, v := range reqmap {
+		respmaps["/groups/"+id+"/action/"+k] = v
+	}
 
 	WritePUTSuccessExplicit(response, respmaps)
 }

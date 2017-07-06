@@ -1,9 +1,12 @@
 package chromaticity
 
 import (
+	"encoding/json"
+	log "github.com/Sirupsen/logrus"
 	"github.com/evq/chromaticity/utils"
 	"github.com/evq/go-restful"
 	"github.com/lucasb-eyer/go-colorful"
+	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -36,7 +39,7 @@ type EffectRoutine struct {
 
 type LightResource struct {
 	Lights      map[string]*Light `json:"lights"`
-	Groups      map[string]*Group  `json:"groups"`
+	Groups      map[string]*Group `json:"groups"`
 	Schedules   map[string]string `json:"schedules"`
 	*ConfigInfo `json:"config"`
 }
@@ -52,8 +55,9 @@ type Light interface {
 
 // Light Types
 const (
-	Ex_Color_Light = "Extended color light"
-	Dimmable_Light = "Dimmable light"
+	Ex_Color_Light   = "Extended color light"
+	Dimmable_Light   = "Dimmable light"
+	Color_Temp_Light = "Color Temperature Light"
 )
 
 type LightInfo struct {
@@ -92,6 +96,31 @@ func NewState() *State {
 	s.Colormode = "xy"
 	s.Xy = []float64{0.0, 0.0}
 	return &s
+}
+
+func (l LightResource) PersistOnChange(persistencefile string) func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+		chain.ProcessFilter(req, resp)
+		if req.Request.Method == "PUT" || req.Request.Method == "POST" || req.Request.Method == "DELETE" {
+			l.Persist(persistencefile)
+		}
+	}
+}
+
+func (l LightResource) Persist(persistencefile string) {
+	str, _ := json.MarshalIndent(l, "", "    ")
+
+	err := ioutil.WriteFile(persistencefile, str, 0644)
+	if err != nil {
+		log.Error("[chromaticity/lib/light] Error persisting groups")
+	}
+}
+
+func (l *LightResource) Load(persistencefile string) {
+	if utils.PathExists(persistencefile) {
+		data, _ := ioutil.ReadFile(persistencefile)
+		json.Unmarshal(data, l)
+	}
 }
 
 func (l LightResource) findLight(request *restful.Request, response *restful.Response) {

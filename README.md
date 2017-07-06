@@ -53,7 +53,12 @@ Usage on a workstation
 
 ```bash
 go get github.com/evq/chromaticity
-go install github.com/evq/chromaticity
+cd /go/github.com/evq/chromaticity
+git submodule init
+git submodule update
+go get -u github.com/jteeuwen/go-bindata/...
+make
+go install
 chromaticity
 ```
 

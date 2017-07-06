@@ -7,4 +7,7 @@ TODO
 * Switch to gopkg.in for versioning?
 * Need to add discover devices support for zigbee backend
 * Persist groups and discovered lights to disk
-* Re-enable Zigbee backend after fixing gorm db syntax error w latest version
+* Handle group membership changes due to light removal (id change, less
+  members)
+* For above consider having globally unique identifier per light and having
+  group persistence use that identifier
