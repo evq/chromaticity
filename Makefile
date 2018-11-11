@@ -26,3 +26,7 @@ static/static.go: static/apidocs
 
 clean:
 	rm static/static.go
+
+.PHONY: docker
+docker:
+	docker build -t chromaticity -f docker/x86_64/Dockerfile .
