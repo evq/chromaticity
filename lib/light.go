@@ -1,11 +1,12 @@
 package chromaticity
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/evq/chromaticity/utils"
 	"github.com/evq/go-restful"
 	"github.com/lucasb-eyer/go-colorful"
-	"net/http"
-	"time"
 )
 
 type State struct {
@@ -35,9 +36,9 @@ type EffectRoutine struct {
 }
 
 type LightResource struct {
-	Lights      map[string]*Light `json:"lights"`
-	Groups      map[string]*Group  `json:"groups"`
-	Schedules   map[string]string `json:"schedules"`
+	Lights      map[string]*Light    `json:"lights"`
+	Groups      map[string]*Group    `json:"groups"`
+	Schedules   map[string]*Schedule `json:"schedules"`
 	*ConfigInfo `json:"config"`
 }
 

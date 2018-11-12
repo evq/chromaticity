@@ -3,6 +3,11 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"mime"
+	"net/http"
+	"strings"
+	"text/template"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/evq/chromaticity/backends"
 	chromaticity "github.com/evq/chromaticity/lib"
@@ -10,10 +15,6 @@ import (
 	"github.com/evq/chromaticity/utils"
 	"github.com/evq/go-restful"
 	"github.com/evq/go-restful/swagger"
-	"mime"
-	"net/http"
-	"strings"
-	"text/template"
 )
 
 type Service struct {
@@ -109,7 +110,7 @@ func ReqLogger(req *restful.Request, resp *restful.Response, chain *restful.Filt
 func StartServer(port string, configfile string) {
 	l := &chromaticity.LightResource{}
 	l.ConfigInfo = chromaticity.NewConfigInfo()
-	l.Schedules = map[string]string{}
+	l.Schedules = map[string]*chromaticity.Schedule{}
 	backends.Load(l, configfile)
 
 	restful.SetLogger(log.StandardLogger())
@@ -124,6 +125,7 @@ func StartServer(port string, configfile string) {
 	l.RegisterConfigApi(wsContainer)
 	l.RegisterLightsApi(wsContainer)
 	l.RegisterGroupsApi(wsContainer)
+	l.RegisterSchedulesApi(wsContainer)
 	backends.RegisterDiscoveryApi(wsContainer, l)
 
 	// Start goroutines to send pixel data
