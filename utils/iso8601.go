@@ -11,7 +11,7 @@ import (
 )
 
 // Mon Jan 2 15:04:05 MST 2006
-const datetimeLayout = "2006-01-02T15:04:05"
+const DatetimeLayout = "2006-01-02T15:04:05"
 const timeLayout = "15:04:05"
 
 type dayOfWeekBitmask uint8
@@ -106,7 +106,7 @@ func GetNextTimeFrom(s string, t *time.Time) (*time.Time, error) {
 	}
 
 	// then treat as an absolute time
-	absoluteTime, err := time.Parse(datetimeLayout, s)
+	absoluteTime, err := time.Parse(DatetimeLayout, s)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse as either absolute or recurring time")
