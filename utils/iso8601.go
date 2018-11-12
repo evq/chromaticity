@@ -3,7 +3,6 @@ package utils
 import (
 	//	"errors"
 
-	"fmt"
 	"regexp"
 	"strconv"
 	"time"
@@ -114,7 +113,7 @@ func GetNextTimeFrom(s string, t *time.Time) (*time.Time, error) {
 	}
 
 	if absoluteTime.Before(*t) {
-		return nil, errors.New(fmt.Sprintf("Parsed absolute time %s is before %s", absoluteTime.String(), t.String()))
+		return nil, nil
 	}
 	return &absoluteTime, err
 }

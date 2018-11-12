@@ -47,7 +47,7 @@ func (s Schedule) executeOptionally(test bool) error {
 		return err
 	}
 
-	req, err := http.NewRequest(s.Command.Method, "localhost:8080"+s.Command.Address, bytes.NewBuffer(b))
+	req, err := http.NewRequest(s.Command.Method, s.Command.Address, bytes.NewBuffer(b))
 	if err != nil {
 		return err
 	}
@@ -60,14 +60,17 @@ func (s Schedule) executeOptionally(test bool) error {
 		if err != nil {
 			fmt.Println(err)
 		}
-		fmt.Println(dump)
+		fmt.Println(string(dump))
 
 		// reschedule
 		t, err := utils.GetNextTimeFrom(s.LocalTime, nil)
 		if err != nil {
 			panic(err)
 		}
-		time.AfterFunc(time.Until(*t), s.execute)
+		if t != nil {
+			// if valid, schedule again
+			time.AfterFunc(time.Until(*t), s.execute)
+		}
 	}
 	return nil
 }
@@ -79,17 +82,18 @@ func (l LightResource) listSchedules(request *restful.Request, response *restful
 func (l LightResource) createSchedule(request *restful.Request, response *restful.Response) {
 	s := Schedule{}
 	request.ReadEntity(&s)
-	fmt.Println(request)
-	fmt.Println("LOCALTIME: " + s.LocalTime)
-	fmt.Println(s.Command)
 	t, err := utils.GetNextTimeFrom(s.LocalTime, nil)
 	if err != nil {
 		response.AddHeader("Content-Type", "text/plain")
 		response.WriteErrorString(http.StatusBadRequest, fmt.Sprintf("400: Error in GetNextTimeFrom: %s", err.Error()))
 		return
 	}
-
-	err = s.executeOptionally(false)
+	if t == nil {
+		response.AddHeader("Content-Type", "text/plain")
+		response.WriteErrorString(http.StatusBadRequest, fmt.Sprintf("400: No time returned from GetNextTimeFrom"))
+		return
+	}
+	err = s.executeOptionally(true)
 	if err != nil {
 		response.AddHeader("Content-Type", "text/plain")
 		response.WriteErrorString(http.StatusBadRequest, fmt.Sprintf("400: Error in executeOptionally: %s", err.Error()))
@@ -120,7 +124,8 @@ func (l LightResource) _RegisterSchedulesApi(ws *restful.WebService) {
 		Doc("create schedule").
 		Param(ws.PathParameter("api_key", "api key").DataType("string")).
 		Operation("createSchedule").
-		Reads(Schedule{}))
+		Reads(Schedule{}).
+		Writes([]SuccessResponse{}))
 
 	/*
 		ws.Route(ws.GET("/{light-id}").To(l.findLight).
