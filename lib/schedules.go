@@ -100,6 +100,8 @@ func (l LightResource) createSchedule(request *restful.Request, response *restfu
 		return
 	}
 
+	fmt.Printf("Schedule %s will next run at %s", s.Name, t.String())
+
 	time.AfterFunc(time.Until(*t), s.execute)
 
 	response.WriteEntity(l.Schedules)
