@@ -109,6 +109,83 @@ func (l LightResource) deleteSchedule(request *restful.Request, response *restfu
 	WritePOSTSuccess(response, []string{fmt.Sprintf("/schedules/%s deleted.", id)})
 }
 
+func (l LightResource) updateSchedule(request *restful.Request, response *restful.Response) {
+	id := request.PathParameter("schedule-id")
+	schedule := l.Schedules[id]
+	if schedule == nil {
+		response.AddHeader("Content-Type", "text/plain")
+		response.WriteErrorString(http.StatusNotFound, "404: Schedule could not be found.")
+		return
+	}
+	newSchedule := *schedule
+	err := request.ReadEntity(&newSchedule)
+	if err != nil {
+		response.AddHeader("Content-Type", "text/plain")
+		response.WriteErrorString(http.StatusBadRequest, fmt.Sprintf("400: Error in ReadEntity: %s", err.Error()))
+		return
+	}
+	if newSchedule.Created != schedule.Created {
+		response.AddHeader("Content-Type", "text/plain")
+		response.WriteErrorString(http.StatusBadRequest, fmt.Sprintf("400: Body cannot contained 'Created' field"))
+		return
+	}
+
+	if len(newSchedule.LocalTime) == 0 && len(newSchedule.Time) == 0 {
+		response.AddHeader("Content-Type", "text/plain")
+		response.WriteErrorString(http.StatusBadRequest, fmt.Sprintf(
+			"400: Either time or localtime must be specified: %s", err.Error()))
+		return
+	}
+
+	// hardcoded UTC as local tz
+	if newSchedule.LocalTime != schedule.LocalTime {
+		newSchedule.Time = newSchedule.LocalTime
+	}
+	if newSchedule.Time != schedule.Time {
+		newSchedule.LocalTime = newSchedule.Time
+	}
+
+	t, err := utils.GetNextTimeFrom(newSchedule.LocalTime, nil)
+	if err != nil {
+		response.AddHeader("Content-Type", "text/plain")
+		response.WriteErrorString(http.StatusBadRequest, fmt.Sprintf("400: Error in GetNextTimeFrom: %s", err.Error()))
+		return
+	}
+	if t == nil {
+		response.AddHeader("Content-Type", "text/plain")
+		response.WriteErrorString(http.StatusBadRequest, fmt.Sprintf("400: No time returned from GetNextTimeFrom"))
+		return
+	}
+
+	if len(newSchedule.Command.Body) == 0 || len(newSchedule.Command.Method) == 0 || len(newSchedule.Command.Address) == 0 {
+		response.AddHeader("Content-Type", "text/plain")
+		response.WriteErrorString(http.StatusBadRequest, fmt.Sprintf("400: Command must be fully specified"))
+		return
+	}
+
+	err = newSchedule.executeOptionally(true)
+	if err != nil {
+		response.AddHeader("Content-Type", "text/plain")
+		response.WriteErrorString(http.StatusBadRequest, fmt.Sprintf("400: Error in executeOptionally: %s", err.Error()))
+		return
+	}
+
+	schedule = &newSchedule
+	l.Schedules[id] = schedule
+
+	log.Debugf(
+		"[chromaticity/lib/schedules] Schedule \"%s\" next run at: %s",
+		schedule.ID,
+		t.String(),
+	)
+
+	schedule.Timer.Stop()
+	schedule.Timer = time.AfterFunc(time.Until(*t), schedule.execute)
+
+	WritePOSTSuccess(response, []string{fmt.Sprintf("/schedules/%s updated.", id)})
+
+}
+
 func (l LightResource) createSchedule(request *restful.Request, response *restful.Response) {
 	s := Schedule{Status: "enabled", Autodelete: true}
 	err := request.ReadEntity(&s)
@@ -158,11 +235,11 @@ func (l LightResource) createSchedule(request *restful.Request, response *restfu
 		return
 	}
 
-  log.Debugf(
-    "[chromaticity/lib/schedules] Schedule \"%s\" next run at: %s",
-    s.ID,
-    t.String(),
-  )
+	log.Debugf(
+		"[chromaticity/lib/schedules] Schedule \"%s\" next run at: %s",
+		s.ID,
+		t.String(),
+	)
 
 	s.Timer = time.AfterFunc(time.Until(*t), s.execute)
 	s.Created = time.Now().Format(utils.DatetimeLayout)
@@ -206,10 +283,17 @@ func (l LightResource) _RegisterSchedulesApi(ws *restful.WebService) {
 		Operation("createSchedule").
 		Reads(Schedule{}).
 		Writes([]SuccessResponse{}))
+	ws.Route(ws.PUT("/{schedule-id}").To(l.updateSchedule).
+		Doc("update schedule").
+		Param(ws.PathParameter("api_key", "api key").DataType("string")).
+		Param(ws.PathParameter("schedule-id", "identifier of the schedule").DataType("int")).
+		Operation("updateSchedule").
+		Reads(Schedule{}).
+		Writes([]SuccessResponse{}))
 	ws.Route(ws.DELETE("/{schedule-id}").To(l.deleteSchedule).
 		Doc("delete schedule").
 		Param(ws.PathParameter("api_key", "api key").DataType("string")).
-		Operation("deleteSchedule").
 		Param(ws.PathParameter("schedule-id", "identifier of the schedule").DataType("int")).
+		Operation("deleteSchedule").
 		Writes([]SuccessResponse{}))
 }
