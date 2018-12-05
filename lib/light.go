@@ -53,8 +53,9 @@ type Light interface {
 
 // Light Types
 const (
-	Ex_Color_Light = "Extended color light"
-	Dimmable_Light = "Dimmable light"
+	Ex_Color_Light    = "Extended color light"
+	Dimmable_Light    = "Dimmable light"
+	On_Off_Plug_Light = "On/Off plug-in unit"
 )
 
 type LightInfo struct {

@@ -3,7 +3,9 @@ module github.com/evq/chromaticity
 require (
 	github.com/Sirupsen/logrus v1.0.6
 	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf // indirect
+	github.com/appnaconda/tplink v0.0.0-20180708031946-eddaff1c9c5d
 	github.com/emicklei/go-restful v2.8.0+incompatible // indirect
+	github.com/evq/chunnel v0.0.0-20171008002800-ae6fd13875e6 // indirect
 	github.com/evq/go-apron v0.0.0-20150517045137-b2fa14935d47
 	github.com/evq/go-kinet v0.0.0-20150507235913-efa3d31a214a
 	github.com/evq/go-limitless v0.0.0-20150310050133-cbc17e3e0b14

@@ -3,13 +3,14 @@ package opclient
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"strconv"
+	"time"
+
 	chromaticity "github.com/evq/chromaticity/lib"
 	"github.com/evq/chromaticity/utils"
 	"github.com/kellydunn/go-opc"
 	"github.com/lucasb-eyer/go-colorful"
-	"reflect"
-	"strconv"
-	"time"
 )
 
 type Backend struct {
