@@ -15,6 +15,7 @@ import (
 	"github.com/evq/chromaticity/utils"
 	"github.com/evq/go-restful"
 	"github.com/evq/go-restful/swagger"
+	"github.com/jinzhu/gorm"
 )
 
 type Service struct {
@@ -107,10 +108,13 @@ func ReqLogger(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	log.Debug("[chromaticity/servers/api] " + string(content))
 }
 
-func StartServer(port string, configfile string) {
-	l := &chromaticity.LightResource{}
+func StartServer(port string, configfile string, db *gorm.DB) {
+	l := &chromaticity.LightResource{DB: db}
 	l.ConfigInfo = chromaticity.NewConfigInfo()
 	backends.Load(l, configfile)
+
+	l.RestoreState()
+
 	l.ImportSchedules(configfile)
 
 	restful.SetLogger(log.StandardLogger())

@@ -6,8 +6,12 @@ import (
 	"strconv"
 
 	log "github.com/Sirupsen/logrus"
+	chromaticity "github.com/evq/chromaticity/lib"
 	"github.com/evq/chromaticity/servers/api"
 	"github.com/evq/chromaticity/servers/ssdp"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"github.com/pkg/errors"
 	"gopkg.in/alecthomas/kingpin.v1"
 )
 
@@ -55,6 +59,14 @@ func main() {
 		*configfile = homeDir + "/.chromaticity/data.json"
 	}
 
+	db, err := gorm.Open("postgres", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		panic(errors.Wrap(err, "failed to connect database"))
+	}
+	defer db.Close()
+
+	db.AutoMigrate(&chromaticity.ColorState{})
+
 	ssdp.StartServer(strconv.Itoa(*port))
-	api.StartServer(strconv.Itoa(*port), *configfile)
+	api.StartServer(strconv.Itoa(*port), *configfile, db)
 }

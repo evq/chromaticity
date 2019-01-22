@@ -32,6 +32,8 @@ github.com/jteeuwen/go-bindata v3.0.7+incompatible h1:91Uy4d9SYVr1kyTJ15wJsog+es
 github.com/jteeuwen/go-bindata v3.0.7+incompatible/go.mod h1:JVvhzYOiGBnFSYRyV00iY8q7/0PThjIYav1p9h5dmKs=
 github.com/kellydunn/go-opc v0.1.0 h1:OaLL1nAszyXscoyYGY6P11QskMAHq8vzjgbGutN9x/c=
 github.com/kellydunn/go-opc v0.1.0/go.mod h1:1ji4srxPhzrfFGvPLz3OjtGhRFP7blDQdyjdfyGuPmQ=
+github.com/lib/pq v1.0.0 h1:X5PMW56eZitiTeO7tKzZxFCSpbFZJtkMMooicw2us9A=
+github.com/lib/pq v1.0.0/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
 github.com/lucasb-eyer/go-colorful v0.0.0-20180709185858-c7842319cf3a h1:B2QfFRl5yGVGGcyEVFzfdXlC1BBvszsIAsCeef2oD0k=
 github.com/lucasb-eyer/go-colorful v0.0.0-20180709185858-c7842319cf3a/go.mod h1:NXg0ArsFk0Y01623LgUqoqcouGDB+PwCCQlrwrG6xJ4=
 github.com/mattn/go-sqlite3 v1.10.0 h1:jbhqpg7tQe4SupckyijYiy0mJJ/pRyHvXf7JdWK860o=

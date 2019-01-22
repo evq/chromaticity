@@ -12,10 +12,11 @@ require (
 	github.com/evq/go-restful v1.1.4-0.20181112003842-7636e845bca6
 	github.com/evq/go-zigbee v0.0.0-20150517045432-a52de58f2043
 	github.com/gorilla/mux v1.6.2 // indirect
-	github.com/jinzhu/gorm v1.9.1 // indirect
+	github.com/jinzhu/gorm v1.9.1
 	github.com/jinzhu/inflection v0.0.0-20180308033659-04140366298a // indirect
 	github.com/jteeuwen/go-bindata v3.0.7+incompatible // indirect
 	github.com/kellydunn/go-opc v0.1.0
+	github.com/lib/pq v1.0.0
 	github.com/lucasb-eyer/go-colorful v0.0.0-20180709185858-c7842319cf3a
 	github.com/mattn/go-sqlite3 v1.10.0 // indirect
 	github.com/pkg/errors v0.8.0

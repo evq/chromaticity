@@ -1,11 +1,13 @@
 package chromaticity
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/evq/chromaticity/utils"
 	"github.com/evq/go-restful"
+	"github.com/jinzhu/gorm"
 	"github.com/lucasb-eyer/go-colorful"
 )
 
@@ -14,20 +16,39 @@ type State struct {
 	*ColorState
 }
 
+type Xy struct {
+	X float64
+	Y float64
+}
+
+func (xy Xy) MarshalJSON() ([]byte, error) {
+	return json.Marshal([]float64{xy.X, xy.Y})
+}
+
+func (xy *Xy) UnmarshalJSON(data []byte) error {
+	var tmp [2]float64
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	*xy = Xy{tmp[0], tmp[1]}
+	return nil
+}
+
 type ColorState struct { // Corresponds to "action" in Hue API
-	Alert          string    `json:"alert"`
-	Bri            uint8     `json:"bri"`
-	BriInc         int16     `json:"bri_inc,omitempty"`
-	Ct             uint16    `json:"ct"`
-	Effect         string    `json:"effect"`
-	EffectSpread   float64   `json:"effectspread,omitempty"`
-	Hue            uint16    `json:"hue"`
-	On             bool      `json:"on"`
-	TransitionTime uint16    `json:"transitiontime,omitempty"`
-	Sat            uint8     `json:"sat"`
-	Xy             []float64 `json:"xy"`
-	Colormode      string    `json:"colormode"`
-	*EffectRoutine
+	LightID        string  `json:"-" gorm:"primary_key"`
+	Alert          string  `json:"alert"`
+	Bri            uint8   `json:"bri"`
+	BriInc         int16   `json:"bri_inc,omitempty"`
+	Ct             uint16  `json:"ct"`
+	Effect         string  `json:"effect"`
+	EffectSpread   float64 `json:"effectspread,omitempty"`
+	Hue            uint16  `json:"hue"`
+	On             bool    `json:"on"`
+	TransitionTime uint16  `json:"transitiontime,omitempty"`
+	Sat            uint8   `json:"sat"`
+	Xy             Xy      `json:"xy" gorm:"embedded"`
+	Colormode      string  `json:"colormode"`
+	*EffectRoutine `gorm:"-"`
 }
 
 type EffectRoutine struct {
@@ -40,6 +61,7 @@ type LightResource struct {
 	Groups      map[string]*Group    `json:"groups"`
 	Schedules   map[string]*Schedule `json:"schedules"`
 	*ConfigInfo `json:"config"`
+	DB          *gorm.DB `json:"-"`
 }
 
 type Light interface {
@@ -92,7 +114,7 @@ func NewState() *State {
 	s.On = true
 	s.Reachable = true
 	s.Colormode = "xy"
-	s.Xy = []float64{0.0, 0.0}
+	s.Xy = Xy{0.0, 0.0}
 	return &s
 }
 
@@ -124,6 +146,7 @@ func (l LightResource) updateLightState(request *restful.Request, response *rest
 	UpdateColorState(cs, request)
 
 	SendState(light, last_color)
+	l.PersistState(light, id)
 
 	response.WriteEntity(WrapLight(light))
 }
@@ -184,7 +207,7 @@ func (state *State) SetColor(c colorful.Color) {
 	state.Bri = uint8(bri * 255.0)
 	switch state.Colormode {
 	case "xy":
-		state.Xy = []float64{x, y}
+		state.Xy = Xy{x, y}
 	case "hs":
 		h, s, _ := c.Hsv()
 		state.Hue = uint16(h / 360.0 * 65535.0)
@@ -200,7 +223,7 @@ func (state *ColorState) GetColor() (c colorful.Color) {
 	}
 	switch state.Colormode {
 	case "xy":
-		return colorful.Xyy(state.Xy[0], state.Xy[1], float64(state.Bri)/255.0)
+		return colorful.Xyy(state.Xy.X, state.Xy.Y, float64(state.Bri)/255.0)
 	case "ct":
 		return utils.FromMirads(state.Ct, state.Bri)
 	case "hs":
@@ -215,7 +238,7 @@ func (state *ColorState) GetColor() (c colorful.Color) {
 
 func UpdateColorState(dest *ColorState, req *restful.Request) {
 	cs := (*dest)
-	cs.Xy = []float64{cs.Xy[0], cs.Xy[1]}
+	cs.Xy = Xy{cs.Xy.X, cs.Xy.Y}
 	req.ReadEntity(&cs)
 
 	mode := _UpdateColorState(dest, cs)
@@ -223,7 +246,7 @@ func UpdateColorState(dest *ColorState, req *restful.Request) {
 		dest.Colormode = mode
 	} else {
 		cs = ColorState{}
-		cs.Xy = []float64{0.0, 0.0}
+		cs.Xy = Xy{0.0, 0.0}
 		cs.Effect = "none"
 		src := cs
 		req.ReadEntity(&src)
@@ -243,12 +266,10 @@ func UpdateColorState(dest *ColorState, req *restful.Request) {
 func _UpdateColorState(state *ColorState, s ColorState) string {
 	mode := ""
 
-	if len(s.Xy) == 2 && len(state.Xy) == 2 {
-		if s.Xy[0] != state.Xy[0] || s.Xy[1] != state.Xy[1] {
-			mode = "xy"
-			state.Xy[0] = s.Xy[0]
-			state.Xy[1] = s.Xy[1]
-		}
+	if s.Xy.X != state.Xy.X || s.Xy.Y != state.Xy.Y {
+		mode = "xy"
+		state.Xy.X = s.Xy.X
+		state.Xy.Y = s.Xy.Y
 	}
 
 	if s.Ct != state.Ct {
@@ -306,6 +327,7 @@ func _UpdateColorState(state *ColorState, s ColorState) string {
 
 func SendState(l *Light, last_color colorful.Color) {
 	s := (*l).GetState()
+
 	if s.EffectRoutine != nil {
 		if !s.EffectRoutine.Done {
 			s.EffectRoutine.Done = true
@@ -335,6 +357,25 @@ func SendState(l *Light, last_color colorful.Color) {
 		}
 	} else {
 		(*l).SetColor(s.GetColor())
+	}
+}
+
+func (l LightResource) PersistState(light *Light, id string) {
+	state := (*light).GetState()
+	colorState := state.ColorState
+	colorState.LightID = id
+	l.DB.Save(&colorState)
+}
+
+func (l LightResource) RestoreState() {
+	var colorStates []ColorState
+	l.DB.Find(&colorStates)
+	for _, state := range colorStates {
+		light := l.Lights[state.LightID]
+		if light != nil {
+			*(*light).GetState().ColorState = state
+		}
+		SendState(light, state.GetColor())
 	}
 }
 
