@@ -29,4 +29,8 @@ clean:
 
 .PHONY: docker
 docker:
-	docker build -t chromaticity -f docker/x86_64/Dockerfile .
+	docker build -t chromaticity:latest -f docker/x86_64/Dockerfile .
+
+.PHONY: docker-arm32v7
+docker-arm32v7:
+	docker build -t chromaticity:arm32v7-latest -f docker/arm32v7/Dockerfile .
