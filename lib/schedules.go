@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
@@ -13,6 +14,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/evq/chromaticity/utils"
 	"github.com/evq/go-restful"
+	"github.com/pkg/errors"
 )
 
 var schedulesContainer *restful.Container
@@ -195,11 +197,18 @@ func (l LightResource) createSchedule(request *restful.Request, response *restfu
 		return
 	}
 
-	if len(s.LocalTime) == 0 && len(s.Time) == 0 {
+	id, err := l.addSchedule(s, "")
+	if err != nil {
 		response.AddHeader("Content-Type", "text/plain")
-		response.WriteErrorString(http.StatusBadRequest, fmt.Sprintf(
-			"400: Either time or localtime must be specified: %s", err.Error()))
+		response.WriteErrorString(http.StatusBadRequest, err.Error())
 		return
+	}
+	WritePOSTSuccess(response, []string{id})
+}
+
+func (l LightResource) addSchedule(s Schedule, id string) (string, error) {
+	if len(s.LocalTime) == 0 && len(s.Time) == 0 {
+		return "", errors.New("Either time or localtime must be specified")
 	}
 
 	// hardcoded UTC as local tz
@@ -212,28 +221,35 @@ func (l LightResource) createSchedule(request *restful.Request, response *restfu
 
 	t, err := utils.GetNextTimeFrom(s.LocalTime, nil)
 	if err != nil {
-		response.AddHeader("Content-Type", "text/plain")
-		response.WriteErrorString(http.StatusBadRequest, fmt.Sprintf("400: Error in GetNextTimeFrom: %s", err.Error()))
-		return
+		return "", errors.Wrap(err, "Error in GetNextTimeFrom")
 	}
 	if t == nil {
-		response.AddHeader("Content-Type", "text/plain")
-		response.WriteErrorString(http.StatusBadRequest, fmt.Sprintf("400: No time returned from GetNextTimeFrom"))
-		return
+		return "", errors.New("No time returned from GetNextTimeFrom")
 	}
 
 	if len(s.Command.Body) == 0 || len(s.Command.Method) == 0 || len(s.Command.Address) == 0 {
-		response.AddHeader("Content-Type", "text/plain")
-		response.WriteErrorString(http.StatusBadRequest, fmt.Sprintf("400: Command must be fully specified"))
-		return
+		return "", errors.New("Command must be fully specified")
 	}
 
 	err = s.executeOptionally(true)
 	if err != nil {
-		response.AddHeader("Content-Type", "text/plain")
-		response.WriteErrorString(http.StatusBadRequest, fmt.Sprintf("400: Error in executeOptionally: %s", err.Error()))
-		return
+		return "", errors.Wrap(err, "Error in executeOptionally")
 	}
+
+	if len(id) > 0 {
+		max := 0
+		for k, _ := range l.Schedules {
+			e, err := strconv.Atoi(k)
+			if err != nil {
+				continue
+			}
+			if e > max {
+				max = e
+			}
+		}
+		id = strconv.Itoa(max + 1)
+	}
+	s.ID = id
 
 	log.Debugf(
 		"[chromaticity/lib/schedules] Schedule \"%s\" next run at: %s",
@@ -245,21 +261,28 @@ func (l LightResource) createSchedule(request *restful.Request, response *restfu
 	s.Created = time.Now().Format(utils.DatetimeLayout)
 	s.Schedules = l.Schedules
 
-	max := 0
-	for k, _ := range l.Schedules {
-		e, err := strconv.Atoi(k)
-		if err != nil {
-			continue
-		}
-		if e > max {
-			max = e
-		}
-	}
-	s.ID = strconv.Itoa(max + 1)
-
 	l.Schedules[s.ID] = &s
 
-	WritePOSTSuccess(response, []string{s.ID})
+	return s.ID, nil
+}
+
+type Config struct {
+	Schedules map[string]Schedule `json: "schedules"`
+}
+
+func (l *LightResource) ImportSchedules(configfile string) {
+	if l.Schedules == nil {
+		l.Schedules = map[string]*Schedule{}
+	}
+
+	data, _ := ioutil.ReadFile(configfile)
+
+	var scheduleConfig Config
+	json.Unmarshal(data, &scheduleConfig)
+
+	for k, v := range scheduleConfig.Schedules {
+		l.addSchedule(v, k)
+	}
 }
 
 func (l LightResource) RegisterSchedulesApi(container *restful.Container) {

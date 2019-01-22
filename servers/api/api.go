@@ -110,8 +110,8 @@ func ReqLogger(req *restful.Request, resp *restful.Response, chain *restful.Filt
 func StartServer(port string, configfile string) {
 	l := &chromaticity.LightResource{}
 	l.ConfigInfo = chromaticity.NewConfigInfo()
-	l.Schedules = map[string]*chromaticity.Schedule{}
 	backends.Load(l, configfile)
+	l.ImportSchedules(configfile)
 
 	restful.SetLogger(log.StandardLogger())
 
